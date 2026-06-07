@@ -286,7 +286,7 @@ export default function BackendOfflineState({
               <label className="block text-[10px] text-slate-500 font-semibold uppercase">
                 API Connection URL Customizer
               </label>
-              <div className="flex space-x-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={tempApiUrl}
@@ -294,20 +294,22 @@ export default function BackendOfflineState({
                   placeholder="https://testlens-production.up.railway.app"
                   className="flex-1 bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-indigo-500"
                 />
-                <button
-                  onClick={handleSaveUrl}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
-                >
-                  Save
-                </button>
-                {localStorage.getItem('testlens_api_url') && (
+                <div className="flex gap-2 shrink-0">
                   <button
-                    onClick={handleClearUrl}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors"
+                    onClick={handleSaveUrl}
+                    className="flex-1 sm:flex-initial px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm text-center"
                   >
-                    Reset
+                    Save
                   </button>
-                )}
+                  {localStorage.getItem('testlens_api_url') && (
+                    <button
+                      onClick={handleClearUrl}
+                      className="flex-1 sm:flex-initial px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors text-center"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
               </div>
               <span className="block text-[9.5px] text-slate-500 leading-normal">
                 Leave empty or click Reset to fallback to Vercel's environment default. If overriding, type the base domain only (e.g., <code>https://your-api.up.railway.app</code>).
