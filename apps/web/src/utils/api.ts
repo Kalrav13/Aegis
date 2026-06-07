@@ -5,6 +5,10 @@ export function getApiBaseUrl(): string {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
   }
   if (typeof window !== 'undefined') {
+    const savedUrl = localStorage.getItem('testlens_api_url');
+    if (savedUrl) {
+      return savedUrl.replace(/\/$/, '');
+    }
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       return 'http://localhost:3001/api/v1';
     }

@@ -19,12 +19,22 @@ export default function BackendOfflineState({
   const [isOffline, setIsOffline] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [tempApiUrl, setTempApiUrl] = useState('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const onReconnectedRef = useRef(onReconnected);
 
   // Resolve healthEndpoint dynamically
   const activeHealthEndpoint = healthEndpoint || (getApiBaseUrl() ? `${getApiBaseUrl()}/health` : '/health');
+
+  useEffect(() => {
+    setTempApiUrl(localStorage.getItem('testlens_api_url') || getApiBaseUrl() || 'http://localhost:3001/api/v1');
+  }, [isOffline]);
+
+  const handleSaveUrl = () => {
+    localStorage.setItem('testlens_api_url', tempApiUrl);
+    window.location.reload();
+  };
 
   useEffect(() => {
     onReconnectedRef.current = onReconnected;
@@ -134,7 +144,7 @@ export default function BackendOfflineState({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center space-x-3 pt-1">
+          <div className="flex flex-col items-center space-y-4 pt-1 w-full">
             <button
               onClick={handleRetry}
               disabled={isRetrying}
@@ -147,6 +157,31 @@ export default function BackendOfflineState({
               )}
               <span>{isRetrying ? 'Checking...' : 'Retry Connection'}</span>
             </button>
+
+            {/* Configurable URL */}
+            <div className="w-full pt-4 border-t border-slate-800/80 space-y-2 text-left">
+              <label className="block text-[10px] text-slate-500 font-semibold uppercase">
+                API Connection URL
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={tempApiUrl}
+                  onChange={(e) => setTempApiUrl(e.target.value)}
+                  placeholder="http://localhost:3001/api/v1"
+                  className="flex-1 bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-indigo-500"
+                />
+                <button
+                  onClick={handleSaveUrl}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+              <span className="block text-[9px] text-slate-500 leading-normal">
+                If the browser blocks localhost requests, deploy your backend or enter your server's API URL.
+              </span>
+            </div>
           </div>
         </div>
       </div>
