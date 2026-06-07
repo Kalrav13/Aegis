@@ -6,26 +6,59 @@ import {
   ComparisonViewModel 
 } from '../types';
 
+/**
+ * Validates that a contract version is compatible with the expected version.
+ * Accepts exact match or patch-level increments within the same minor version.
+ * e.g., expected '1.0.0' accepts '1.0.0', '1.0.1', '1.0.99' but NOT '1.1.0' or '2.0.0'.
+ */
+export function isCompatibleVersion(actual: string | undefined, expected: string = '1.0.0'): boolean {
+  if (!actual) return true; // Allow missing version (assume compatible)
+  
+  const parseVersion = (v: string): [number, number, number] | null => {
+    const match = v.match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!match) return null;
+    return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
+  };
+
+  const actualParts = parseVersion(actual);
+  const expectedParts = parseVersion(expected);
+
+  if (!actualParts || !expectedParts) return true; // Gracefully accept unparseable versions
+
+  // Major and minor must match exactly; patch can vary
+  return actualParts[0] === expectedParts[0] && actualParts[1] === expectedParts[1];
+}
+
+/** Safely extract a numeric value with a fallback default */
+function safeNum(value: any, fallback: number = 0): number {
+  if (value === undefined || value === null || isNaN(value)) return fallback;
+  return typeof value === 'number' ? value : parseFloat(value) || fallback;
+}
+
 export function mapToDashboardViewModel(run: AnalysisRun): DashboardViewModel {
   const coverage = run.coverageDashboardPayload || {};
   const scorecard = run.executionScorecard || {};
   
   const stats = run.repositoryStatistics || {};
+  const discovery = run.coverageDiscoveryContext || {};
   const metadata = scorecard.builderMetadata || {};
 
-  // Extract base counts
-  const featureCount = stats.totalFeatures || 0;
-  const scenarioCount = stats.totalScenarios || 0;
-  const testCaseCount = stats.totalTestCases || 0;
-  const automatedCount = stats.totalAutomated || 0;
+  const contractVersion = run.executionScorecard?.contractVersion || run.coverageDashboardPayload?.contractVersion;
+  const versionCompatible = isCompatibleVersion(contractVersion, '1.0.0');
+
+  // Extract base counts (prefer discoveryContext over repositoryStatistics)
+  const featureCount = safeNum(discovery.featuresCount) || safeNum(stats.totalFeatures);
+  const scenarioCount = safeNum(discovery.scenariosCount) || safeNum(stats.totalScenarios);
+  const testCaseCount = safeNum(discovery.testCasesCount) || safeNum(stats.totalTestCases);
+  const automatedCount = safeNum(discovery.automationScriptsCount) || safeNum(stats.totalAutomated);
 
   // Extract percentage metrics
-  const automationCoverage = coverage.automationCoverage !== undefined ? coverage.automationCoverage : 0;
-  const coverageConfidence = coverage.coverageConfidenceScore !== undefined ? coverage.coverageConfidenceScore : 0;
+  const automationCoverage = safeNum(coverage.automationCoverage);
+  const coverageConfidence = safeNum(coverage.coverageConfidenceScore);
   
-  const executionConfidence = scorecard.executionConfidenceScore !== undefined ? scorecard.executionConfidenceScore : 0;
-  const passRate = scorecard.passRate !== undefined ? scorecard.passRate : 0;
-  const flakyRate = metadata.flakyRate !== undefined ? metadata.flakyRate : 0;
+  const executionConfidence = safeNum(scorecard.executionConfidenceScore);
+  const passRate = safeNum(scorecard.passRate);
+  const flakyRate = safeNum(metadata.flakyRate);
 
   // Readiness gates
   const executionReadiness = scorecard.executionReadiness || {};
@@ -47,7 +80,9 @@ export function mapToDashboardViewModel(run: AnalysisRun): DashboardViewModel {
     passRate,
     flakyRate,
     ready,
-    blockingReasons
+    blockingReasons,
+    contractVersion: contractVersion || '1.0.0',
+    versionCompatible
   };
 }
 
@@ -68,11 +103,36 @@ export function mapToCoverageViewModel(run: AnalysisRun): CoverageViewModel {
       features: (details.features || []).map((f: any) => ({
         featureId: f.featureId || '',
         featureName: f.featureName || '',
+        featureType: f.featureType || 'CORE',
+        description: f.description || '',
         scenariosCount: f.scenariosCount || 0,
         testCasesCount: f.testCasesCount || 0,
         automatedCount: f.automatedCount || 0,
         coverageRatio: f.coverageRatio || 0,
-        confidenceScore: f.confidenceScore || 0
+        confidenceScore: f.confidenceScore || 0,
+        scenarios: (f.scenarios || []).map((s: any) => ({
+          id: s.id || '',
+          scenarioName: s.scenarioName || '',
+          scenarioType: s.scenarioType || 'POSITIVE',
+          description: s.description || '',
+          confidenceScore: s.confidenceScore || 0,
+          riskLevel: s.riskLevel || 'MEDIUM',
+          priority: s.priority || 'MEDIUM',
+          testCases: (s.testCases || []).map((tc: any) => ({
+            id: tc.id || '',
+            testCaseKey: tc.testCaseKey || '',
+            testCaseName: tc.testCaseName || '',
+            testCaseType: tc.testCaseType || 'FUNCTIONAL',
+            priority: tc.priority || 'MEDIUM',
+            description: tc.description || '',
+            preconditions: tc.preconditions || [],
+            steps: tc.steps || [],
+            expectedResult: tc.expectedResult || '',
+            riskLevel: tc.riskLevel || 'MEDIUM',
+            automationStatus: tc.automationStatus || 'UNAUTOMATED',
+            automationPath: tc.automationPath || null
+          }))
+        }))
       })),
       traceabilityGaps: (details.traceabilityGaps || []).map((g: any) => ({
         type: g.type || 'FEATURE',

@@ -6,15 +6,19 @@ const nextConfig = {
     return [
       {
         source: '/projects/:path*',
-        destination: 'http://localhost:3000/projects/:path*',
+        destination: 'http://localhost:3001/api/v1/projects/:path*',
       },
       {
         source: '/analyses/:path*',
-        destination: 'http://localhost:3000/analyses/:path*',
+        destination: 'http://localhost:3001/api/v1/analyses/:path*',
       },
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3000/api/:path*',
+        destination: 'http://localhost:3001/api/:path*',
+      },
+      {
+        source: '/health',
+        destination: 'http://localhost:3001/api/v1/health',
       },
     ];
   }

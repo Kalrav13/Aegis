@@ -55,6 +55,8 @@ export interface DashboardViewModel {
   // Readiness Gates
   ready: boolean;
   blockingReasons: string[];
+  contractVersion: string;
+  versionCompatible: boolean;
 }
 
 export interface CoverageViewModel {
@@ -70,11 +72,40 @@ export interface CoverageViewModel {
     features: Array<{
       featureId: string;
       featureName: string;
+      featureType?: string;
+      description?: string;
       scenariosCount: number;
       testCasesCount: number;
       automatedCount: number;
       coverageRatio: number;
       confidenceScore: number;
+      scenarios?: Array<{
+        id: string;
+        scenarioName: string;
+        scenarioType: string;
+        description: string;
+        confidenceScore: number;
+        riskLevel: string;
+        priority: string;
+        testCases: Array<{
+          id: string;
+          testCaseKey: string;
+          testCaseName: string;
+          testCaseType: string;
+          priority: string;
+          description: string;
+          preconditions: string[];
+          steps: Array<{
+            stepNumber: number;
+            action: string;
+            expectedResult: string;
+          }>;
+          expectedResult: string;
+          riskLevel: string;
+          automationStatus: string;
+          automationPath?: string | null;
+        }>;
+      }>;
     }>;
     traceabilityGaps: Array<{
       type: 'FEATURE' | 'SCENARIO' | 'TEST_CASE';

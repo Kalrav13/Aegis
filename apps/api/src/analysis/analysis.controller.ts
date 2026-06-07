@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Param, NotFoundException, UnprocessableEntityException, InternalServerErrorException } from '@nestjs/common';
 import { AnalysisService } from './analysis.service';
+import { AnalysisRun } from '@testlens/db';
 import {
   CoverageReportingService,
   CoverageReportNotFoundError,
@@ -19,13 +20,18 @@ export class AnalysisController {
     private readonly executionReportingService: ExecutionReportingService
   ) {}
 
+  @Get('health')
+  public async getHealth() {
+    return { status: 'UP' };
+  }
+
   @Post('projects/:projectId/analyses')
-  public async trigger(@Param('projectId') projectId: string) {
+  public async trigger(@Param('projectId') projectId: string): Promise<AnalysisRun> {
     return this.analysisService.triggerAnalysis(projectId);
   }
 
   @Get('analyses/:id')
-  public async getStatus(@Param('id') id: string) {
+  public async getStatus(@Param('id') id: string): Promise<AnalysisRun> {
     const run = await this.analysisService.getAnalysisStatus(id);
     if (!run) {
       throw new NotFoundException(`Analysis run with ID ${id} not found`);
@@ -34,7 +40,7 @@ export class AnalysisController {
   }
 
   @Get('projects/:projectId/analyses')
-  public async getHistory(@Param('projectId') projectId: string) {
+  public async getHistory(@Param('projectId') projectId: string): Promise<AnalysisRun[]> {
     return this.analysisService.getProjectHistory(projectId);
   }
 

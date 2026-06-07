@@ -5,8 +5,11 @@ import {
   Layers, 
   FileCode, 
   Settings, 
-  GitBranch 
+  GitBranch,
+  Zap,
+  Info
 } from 'lucide-react';
+import GlobalSearch from './GlobalSearch';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,6 +17,7 @@ interface LayoutProps {
   onTabChange: (tab: string) => void;
   projectName?: string;
   repoUrl?: string;
+  onRunDetailsClick?: () => void;
 }
 
 export default function Layout({ 
@@ -21,10 +25,12 @@ export default function Layout({
   activeTab, 
   onTabChange,
   projectName = "TestLens Core",
-  repoUrl = "github.com/company/repo"
+  repoUrl = "github.com/company/repo",
+  onRunDetailsClick
 }: LayoutProps) {
   const navItems = [
     { id: 'dashboard', label: 'Overview Dashboard', icon: Activity },
+    { id: 'intelligence', label: 'Intelligence Overview', icon: Zap },
     { id: 'features', label: 'Feature Explorer', icon: FileCode },
     { id: 'coverage', label: 'Coverage Maps', icon: Layers },
     { id: 'execution', label: 'Execution Reports', icon: BarChart3 },
@@ -64,6 +70,7 @@ export default function Layout({
               return (
                 <button
                   key={item.id}
+                  id={`nav-${item.id}`}
                   onClick={() => onTabChange(item.id)}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive 
@@ -97,11 +104,18 @@ export default function Layout({
           <h2 className="font-semibold text-lg text-slate-100">
             {navItems.find(i => i.id === activeTab)?.label || 'Overview'}
           </h2>
-          <div className="flex items-center space-x-4">
-            <div className="h-2.5 w-2.5 bg-indigo-500 rounded-full animate-ping"></div>
-            <span className="text-xs text-slate-400 font-medium bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full">
-              Intelligence Processor Connected
-            </span>
+          <div className="flex items-center space-x-3">
+            <GlobalSearch />
+            {onRunDetailsClick && (
+              <button
+                onClick={onRunDetailsClick}
+                className="p-2 hover:bg-slate-800/60 rounded-lg text-slate-500 hover:text-indigo-400 transition-colors"
+                title="View Run Details"
+                id="run-details-btn"
+              >
+                <Info className="h-4.5 w-4.5" />
+              </button>
+            )}
           </div>
         </header>
 

@@ -352,6 +352,109 @@ export class CoverageReportingService {
       blockingReasons: [] as string[]
     };
 
+    // Build nested details features tree
+    const detailedFeatures = features.map(f => {
+      let featScenarios = f.scenarios;
+      if (!featScenarios) {
+        featScenarios = scenarios.filter(s => {
+          const featureIds = s.scenarioOrigin?.featureIds || [];
+          return featureIds.includes(f.id);
+        });
+      }
+
+      const mappedScenarios = featScenarios.map((s: any) => {
+        let scenTestCases = s.testCases;
+        if (!scenTestCases) {
+          scenTestCases = testCases.filter(tc => {
+            const scenarioIds = tc.testCaseOrigin?.scenarioIds || [];
+            const sId = s.scenarioId || s.id;
+            return scenarioIds.includes(sId);
+          });
+        }
+
+        const mappedTestCases = scenTestCases.map((tc: any) => {
+          return {
+            id: tc.testCaseId || tc.id,
+            testCaseKey: tc.testCaseKey || '',
+            testCaseName: tc.testCaseName || '',
+            testCaseType: tc.testCaseType || 'FUNCTIONAL',
+            priority: tc.priority || 'MEDIUM',
+            description: tc.description || '',
+            preconditions: Array.isArray(tc.preconditions) ? tc.preconditions : [],
+            steps: Array.isArray(tc.steps) ? tc.steps : [],
+            expectedResult: tc.expectedResult || '',
+            riskLevel: tc.riskLevel || 'MEDIUM',
+            automationStatus: tc.automationStatus || 'UNAUTOMATED',
+            automationPath: tc.automationPath || null
+          };
+        });
+
+        return {
+          id: s.scenarioId || s.id,
+          scenarioName: s.scenarioName || '',
+          scenarioType: s.scenarioType || 'POSITIVE',
+          description: s.description || '',
+          confidenceScore: s.confidenceScore || 0,
+          riskLevel: s.riskLevel || 'MEDIUM',
+          priority: s.priority || 'MEDIUM',
+          testCases: mappedTestCases
+        };
+      });
+
+      const scenariosCount = mappedScenarios.length;
+      const testCasesCount = mappedScenarios.reduce((sum: number, s: any) => sum + s.testCases.length, 0);
+      const automatedCount = mappedScenarios.reduce((sum: number, s: any) => 
+        sum + s.testCases.filter((tc: any) => tc.automationStatus === 'AUTOMATED').length, 0
+      );
+      const coverageRatio = testCasesCount > 0 ? (automatedCount / testCasesCount) : 0;
+
+      return {
+        featureId: f.id,
+        featureName: f.featureName,
+        featureType: f.featureType || 'CORE',
+        description: f.description || '',
+        confidenceScore: f.confidenceScore || 0,
+        riskLevel: f.riskLevel || 'MEDIUM',
+        scenariosCount,
+        testCasesCount,
+        automatedCount,
+        coverageRatio,
+        scenarios: mappedScenarios
+      };
+    });
+
+    // Build traceability gaps list
+    const traceabilityGaps: any[] = [];
+    features.forEach(f => {
+      if (uncoveredFeatureIds.includes(f.id)) {
+        traceabilityGaps.push({
+          type: 'FEATURE',
+          name: f.featureName,
+          reason: `Feature '${f.featureName}' has no associated scenarios.`
+        });
+      }
+    });
+    scenarios.forEach(s => {
+      const sId = s.scenarioId || s.id;
+      if (uncoveredScenarioIds.includes(sId)) {
+        traceabilityGaps.push({
+          type: 'SCENARIO',
+          name: s.scenarioName,
+          reason: `Scenario '${s.scenarioName}' has no associated test cases.`
+        });
+      }
+    });
+    testCases.forEach(tc => {
+      const tcId = tc.testCaseId || tc.id;
+      if (unautomatedTestCaseIds.includes(tcId)) {
+        traceabilityGaps.push({
+          type: 'TEST_CASE',
+          name: tc.testCaseName,
+          reason: `Test case '${tc.testCaseKey || tcId}' is not automated.`
+        });
+      }
+    });
+
     const dashboardPayload = {
       payloadVersion: '1.0.0' as const,
       executiveSummary,
@@ -366,7 +469,11 @@ export class CoverageReportingService {
       gapReport,
       trendReport,
       reportingQuality,
-      reportingReadiness
+      reportingReadiness,
+      details: {
+        features: detailedFeatures,
+        traceabilityGaps
+      }
     };
 
     return dashboardPayload;

@@ -21,14 +21,20 @@ import MetricCard from '@/components/MetricCard';
 import HealthWidget from '@/components/HealthWidget';
 import Timeline from '@/components/Timeline';
 import RunComparer from '@/components/RunComparer';
+import AnalysisDetailsDrawer from '@/components/AnalysisDetailsDrawer';
+import BackendOfflineState from '@/components/BackendOfflineState';
 import { CardSkeleton, TableSkeleton } from '@/components/Skeletons';
 import { useToast } from '@/components/Toast';
 import { useAnalysisPolling } from '@/hooks/useAnalysisPolling';
+import { useUrlState } from '@/hooks/useUrlState';
+import { useAuditLogger } from '@/hooks/useAuditLogger';
+import { useUIStore } from '@/store/store';
 
 import FeatureBrowser from '@/features/FeatureBrowser';
 import CoverageMaps from '@/features/CoverageMaps';
 import ExecutionTab from '@/features/ExecutionTab';
 import SettingsPanel from '@/features/SettingsPanel';
+import IntelligenceOverview from '@/features/IntelligenceOverview';
 
 import { Project, AnalysisRun } from '@/types';
 import { 
@@ -42,13 +48,19 @@ import { exportAnalysisRunAsJson } from '@/utils/export';
 
 export default function Home() {
   const { showToast } = useToast();
+  const { logEvent } = useAuditLogger();
+
+  // Activate URL ↔ Zustand synchronization
+  useUrlState();
+
+  // Read global UI state from Zustand
+  const { activeTab, setActiveTab } = useUIStore();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [history, setHistory] = useState<AnalysisRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<AnalysisRun | null>(null);
   
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [loading, setLoading] = useState<boolean>(true);
   const [triggering, setTriggering] = useState<boolean>(false);
   
@@ -62,6 +74,9 @@ export default function Home() {
   const [compareAId, setCompareAId] = useState<string>('');
   const [compareBId, setCompareBId] = useState<string>('');
   const [isComparing, setIsComparing] = useState<boolean>(false);
+
+  // Details drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
   // Initialize projects list
   useEffect(() => {
@@ -132,6 +147,7 @@ export default function Home() {
   const handleTriggerAnalysis = async () => {
     if (!selectedProject) return;
     setTriggering(true);
+    logEvent('ANALYSIS_TRIGGERED', { projectId: selectedProject.id });
     showToast('Initializing repository clone and analysis pipeline...', 'INFO');
     try {
       const newRun = await triggerAnalysis(selectedProject.id);
@@ -160,10 +176,37 @@ export default function Home() {
       setNewProjName('');
       setNewProjRepo('');
       setNewProjBranch('main');
+      logEvent('PROJECT_CREATED', { projectId: proj.id, name: proj.name });
       showToast(`Project '${proj.name}' registered successfully.`, 'SUCCESS');
     } catch (err: any) {
       showToast(err.message || 'Failed to create project.', 'ERROR');
     }
+  };
+
+  // Handle tab change with audit logging
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    logEvent('TAB_CHANGED', { tab });
+  };
+
+  // Handle run selection with audit
+  const handleSelectRun = (run: AnalysisRun) => {
+    setSelectedRun(run);
+    logEvent('ANALYSIS_SELECTED', { runId: run.id, status: run.status });
+  };
+
+  // Handle export with audit
+  const handleExport = () => {
+    if (selectedRun) {
+      exportAnalysisRunAsJson(selectedRun);
+      logEvent('EXPORT_TRIGGERED', { runId: selectedRun.id });
+    }
+  };
+
+  // Handle drawer
+  const handleOpenDrawer = () => {
+    setIsDrawerOpen(true);
+    logEvent('DRAWER_OPENED', { runId: selectedRun?.id });
   };
 
   const dashboardVM = selectedRun ? mapToDashboardViewModel(selectedRun) : null;
@@ -172,24 +215,32 @@ export default function Home() {
     <>
       <Head>
         <title>TestLens Dashboard Console</title>
-        <meta name="description" content="AI-powered QA Analyst platform" />
+        <meta name="description" content="AI-powered QA Analyst platform — consolidated test intelligence dashboard" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
+      {/* Backend offline overlay */}
+      <BackendOfflineState />
+
       <Layout 
         activeTab={activeTab} 
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         projectName={selectedProject?.name}
         repoUrl={selectedProject?.gitUrl}
+        onRunDetailsClick={selectedRun ? handleOpenDrawer : undefined}
       >
         {/* Project Selector header and actions controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center space-x-3">
             <select
+              id="project-selector"
               value={selectedProject?.id || ''}
               onChange={(e) => {
                 const proj = projects.find(p => p.id === e.target.value);
-                if (proj) setSelectedProject(proj);
+                if (proj) {
+                  setSelectedProject(proj);
+                  logEvent('PROJECT_SELECTED', { projectId: proj.id });
+                }
               }}
               className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-300 font-semibold outline-none focus:border-indigo-500 cursor-pointer min-w-[200px]"
             >
@@ -199,6 +250,7 @@ export default function Home() {
             </select>
             
             <button
+              id="add-project-btn"
               onClick={() => setShowAddProject(true)}
               className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-indigo-400 transition-colors"
               title="Add New Project"
@@ -211,6 +263,7 @@ export default function Home() {
             <div className="flex items-center space-x-3">
               {/* Trigger button */}
               <button
+                id="trigger-analysis-btn"
                 onClick={handleTriggerAnalysis}
                 disabled={triggering || !!(selectedRun && ['CLONING', 'FILTERING', 'ANALYZING', 'GENERATING'].includes(selectedRun.status))}
                 className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-600 disabled:bg-slate-800/80 disabled:text-slate-500 text-white font-semibold rounded-lg text-xs flex items-center space-x-2 transition-all duration-150 shadow-lg shadow-indigo-600/10"
@@ -222,7 +275,8 @@ export default function Home() {
               {/* Export JSON button */}
               {selectedRun && selectedRun.status === 'COMPLETED' && (
                 <button
-                  onClick={() => exportAnalysisRunAsJson(selectedRun)}
+                  id="export-json-btn"
+                  onClick={handleExport}
                   className="px-4 py-2.5 bg-slate-900 border border-slate-800 hover:bg-slate-800/60 rounded-lg text-slate-300 hover:text-indigo-400 text-xs font-semibold flex items-center space-x-2 transition-all duration-150"
                   title="Export Run as JSON"
                 >
@@ -328,7 +382,11 @@ export default function Home() {
                       
                       {compareAId && compareBId && (
                         <button
-                          onClick={() => setIsComparing(true)}
+                          id="compare-runs-btn"
+                          onClick={() => {
+                            setIsComparing(true);
+                            logEvent('RUN_COMPARED', { runA: compareAId, runB: compareBId });
+                          }}
                           className="px-3 py-1.5 bg-indigo-600/20 border border-indigo-500/30 hover:bg-indigo-600/30 text-indigo-300 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-all duration-150"
                         >
                           <GitCompare className="h-4 w-4" />
@@ -358,7 +416,7 @@ export default function Home() {
                                 className={`cursor-pointer transition-colors duration-150 ${
                                   isSelected ? 'bg-slate-900/40 text-slate-200' : 'hover:bg-slate-900/10 text-slate-400'
                                 }`}
-                                onClick={() => setSelectedRun(runItem)}
+                                onClick={() => handleSelectRun(runItem)}
                               >
                                 <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center space-x-3">
@@ -399,6 +457,10 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'intelligence' && (
+                <IntelligenceOverview run={selectedRun} />
               )}
 
               {activeTab === 'features' && (
@@ -456,6 +518,7 @@ export default function Home() {
                     placeholder="e.g. TestLens Core API"
                     className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-slate-300 font-medium outline-none focus:border-indigo-500"
                     required
+                    id="new-project-name"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -467,6 +530,7 @@ export default function Home() {
                     placeholder="https://github.com/company/repo.git"
                     className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-slate-300 font-medium outline-none focus:border-indigo-500"
                     required
+                    id="new-project-repo"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -478,6 +542,7 @@ export default function Home() {
                     placeholder="main"
                     className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-slate-300 font-medium outline-none focus:border-indigo-500"
                     required
+                    id="new-project-branch"
                   />
                 </div>
                 <div className="pt-4 border-t border-slate-900 flex justify-end space-x-3">
@@ -491,6 +556,7 @@ export default function Home() {
                   <button
                     type="submit"
                     className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 text-white font-semibold rounded-lg shadow-lg shadow-indigo-650/10"
+                    id="create-project-submit"
                   >
                     Create Project
                   </button>
@@ -500,6 +566,17 @@ export default function Home() {
           </div>
         )}
       </Layout>
+
+      {/* Details Drawer */}
+      <AnalysisDetailsDrawer
+        run={selectedRun}
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          logEvent('DRAWER_CLOSED');
+        }}
+        projectName={selectedProject?.name}
+      />
     </>
   );
 }

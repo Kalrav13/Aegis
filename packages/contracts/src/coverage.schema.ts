@@ -134,7 +134,53 @@ export const CoverageDashboardPayloadSchema = z.object({
   gapReport: CoverageGapReportSchema,
   trendReport: CoverageTrendReportSchema,
   reportingQuality: ReportingQualitySchema,
-  reportingReadiness: ReportingReadinessSchema
+  reportingReadiness: ReportingReadinessSchema,
+  details: z.object({
+    features: z.array(z.object({
+      featureId: z.string(),
+      featureName: z.string(),
+      featureType: z.string(),
+      description: z.string(),
+      confidenceScore: z.number(),
+      riskLevel: z.string(),
+      scenariosCount: z.number(),
+      testCasesCount: z.number(),
+      automatedCount: z.number(),
+      coverageRatio: z.number(),
+      scenarios: z.array(z.object({
+        id: z.string(),
+        scenarioName: z.string(),
+        scenarioType: z.string(),
+        description: z.string(),
+        confidenceScore: z.number(),
+        riskLevel: z.string(),
+        priority: z.string(),
+        testCases: z.array(z.object({
+          id: z.string(),
+          testCaseKey: z.string(),
+          testCaseName: z.string(),
+          testCaseType: z.string(),
+          priority: z.string(),
+          description: z.string(),
+          preconditions: z.array(z.string()),
+          steps: z.array(z.object({
+            stepNumber: z.number(),
+            action: z.string(),
+            expectedResult: z.string()
+          })),
+          expectedResult: z.string(),
+          riskLevel: z.string(),
+          automationStatus: z.string(),
+          automationPath: z.string().nullable().optional()
+        }))
+      }))
+    })),
+    traceabilityGaps: z.array(z.object({
+      type: z.enum(["FEATURE", "SCENARIO", "TEST_CASE"]),
+      name: z.string(),
+      reason: z.string()
+    }))
+  }).optional()
 });
 
 export type ExecutiveSummary = z.infer<typeof ExecutiveSummarySchema>;

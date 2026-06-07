@@ -10,11 +10,11 @@
     "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
-    "@prisma/client": "^5.4.2"
+    "@prisma/client": "6.2.0"
   },
   "devDependencies": {
     "@testlens/tsconfig": "*",
-    "prisma": "^5.4.2",
+    "prisma": "6.2.0",
     "typescript": "^5.2.2"
   }
 }
