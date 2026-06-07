@@ -39,6 +39,11 @@ export class AnalysisController {
     };
   }
 
+  @Get('api/v1/health')
+  public async getApiHealth() {
+    return this.getHealth();
+  }
+
   @Post('projects/:projectId/analyses')
   public async trigger(@Param('projectId') projectId: string): Promise<AnalysisRun> {
     return this.analysisService.triggerAnalysis(projectId);

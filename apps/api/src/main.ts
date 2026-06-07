@@ -19,7 +19,7 @@ async function bootstrap() {
   
   // Set global API prefix, excluding root and health check endpoints
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health', '']
+    exclude: ['health', 'api/v1/health', '']
   });
 
   const configService = app.get(AppConfigService);
