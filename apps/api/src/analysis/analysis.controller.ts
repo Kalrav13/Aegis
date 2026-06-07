@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Param, NotFoundException, UnprocessableEntityException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Get, Param, NotFoundException, UnprocessableEntityException, InternalServerErrorException, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AnalysisService } from './analysis.service';
 import { AnalysisRun } from '@testlens/db';
 import {
@@ -45,11 +46,13 @@ export class AnalysisController {
   }
 
   @Post('projects/:projectId/analyses')
+  @UseGuards(JwtAuthGuard)
   public async trigger(@Param('projectId') projectId: string): Promise<AnalysisRun> {
     return this.analysisService.triggerAnalysis(projectId);
   }
 
   @Get('analyses/:id')
+  @UseGuards(JwtAuthGuard)
   public async getStatus(@Param('id') id: string): Promise<AnalysisRun> {
     const run = await this.analysisService.getAnalysisStatus(id);
     if (!run) {
@@ -59,11 +62,13 @@ export class AnalysisController {
   }
 
   @Get('projects/:projectId/analyses')
+  @UseGuards(JwtAuthGuard)
   public async getHistory(@Param('projectId') projectId: string): Promise<AnalysisRun[]> {
     return this.analysisService.getProjectHistory(projectId);
   }
 
   @Get('api/analysis/:id/coverage-report')
+  @UseGuards(JwtAuthGuard)
   public async getCoverageReport(@Param('id') id: string) {
     try {
       return await this.coverageReportingService.generateReport(id);
@@ -79,6 +84,7 @@ export class AnalysisController {
   }
 
   @Get('api/analysis/:id/execution-report')
+  @UseGuards(JwtAuthGuard)
   public async getExecutionReport(@Param('id') id: string) {
     try {
       return await this.executionReportingService.getExecutionReport(id);

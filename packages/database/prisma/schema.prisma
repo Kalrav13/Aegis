@@ -8,6 +8,17 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  name      String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  projects  Project[]
+
+  @@map("users")
+}
+
 model Project {
   id                  String        @id @default(uuid())
   name                String
@@ -15,6 +26,8 @@ model Project {
   branch              String
   authTokenEncrypted  String?       @map("auth_token_encrypted")
   createdAt           DateTime      @default(now()) @map("created_at")
+  userId              String?       @map("user_id")
+  user                User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   analyses            AnalysisRun[]
 
   @@map("projects")

@@ -34,13 +34,15 @@ import { CoverageIntelligenceService } from './common/context/coverage-intellige
 import { CoverageReportingService } from './common/context/coverage-reporting.service';
 import { ExecutionIntelligenceService } from './common/context/execution-intelligence.service';
 import { ExecutionReportingService } from './common/context/execution-reporting.service';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateConfig
-    })
+    }),
+    AuthModule
   ],
   controllers: [
     ProjectsController,
