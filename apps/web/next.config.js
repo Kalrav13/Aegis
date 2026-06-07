@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@testlens/contracts"],
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1').trim().replace(/[\r\n]/g, '');
     const cleanApiUrl = apiUrl.replace(/\/$/, '');
     const baseHost = cleanApiUrl.replace(/\/api\/v1$/, '').replace(/\/api$/, '');
 

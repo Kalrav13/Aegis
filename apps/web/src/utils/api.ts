@@ -13,6 +13,7 @@ export function getApiBaseUrl(): string {
   }
 
   if (url) {
+    url = url.trim().replace(/[\r\n]/g, '');
     url = url.replace(/\/$/, '');
     if (!url.endsWith('/api/v1') && !url.endsWith('/api')) {
       url = `${url}/api/v1`;
