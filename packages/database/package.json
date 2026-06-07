@@ -1,0 +1,20 @@
+{
+  "name": "@testlens/db",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.4.2"
+  },
+  "devDependencies": {
+    "@testlens/tsconfig": "*",
+    "prisma": "^5.4.2",
+    "typescript": "^5.2.2"
+  }
+}
