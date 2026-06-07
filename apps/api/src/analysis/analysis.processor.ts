@@ -5,6 +5,9 @@ import { StorageManager } from '../common/storage/storage.manager';
 import { FilterService } from '../common/filter/filter.service';
 import { ManifestService } from '../common/manifest/manifest.service';
 import { RegistryService } from '../common/registry/registry.service';
+import { ContextBuilderService } from '../common/context/context-builder.service';
+import { QualityEvaluatorService } from '../common/context/quality-evaluator.service';
+import { UnderstandingAgentService } from '../common/understanding/understanding-agent.service';
 
 @Injectable()
 export class AnalysisProcessor {
@@ -15,7 +18,10 @@ export class AnalysisProcessor {
     private readonly storageManager: StorageManager,
     private readonly filterService: FilterService,
     private readonly manifestService: ManifestService,
-    private readonly registryService: RegistryService
+    private readonly registryService: RegistryService,
+    private readonly contextBuilderService: ContextBuilderService,
+    private readonly understandingAgentService: UnderstandingAgentService,
+    private readonly qualityEvaluatorService: QualityEvaluatorService
   ) {}
 
   /**
@@ -64,7 +70,16 @@ export class AnalysisProcessor {
       // 8. Execute Repository Interaction Element Registry
       const interactionRegistry = await this.registryService.generateRegistry(targetPath, filteredManifest);
 
-      // 9. Update status to COMPLETED and save both payloads
+      // 9. Execute AI-ready Context Builder
+      const aiReadyContext = this.contextBuilderService.buildContext(intelligenceManifest, interactionRegistry);
+
+      // 10. Execute Repository Understanding Agent
+      const repositoryUnderstanding = await this.understandingAgentService.analyzeRepository(aiReadyContext);
+
+      // 11. Execute Repository Understanding Quality Evaluator
+      const qualityScorecard = await this.qualityEvaluatorService.evaluate(aiReadyContext, repositoryUnderstanding);
+
+      // 12. Update status to COMPLETED and save all payloads
       await prisma.analysisRun.update({
         where: { id: analysisId },
         data: {
@@ -72,7 +87,10 @@ export class AnalysisProcessor {
           commitSha,
           completedAt: new Date(),
           repositoryStatistics: intelligenceManifest as any, // Stores complete IntelligenceManifest JSON
-          interactionRegistry: interactionRegistry as any // Stores complete InteractionRegistry JSON
+          interactionRegistry: interactionRegistry as any, // Stores complete InteractionRegistry JSON
+          aiReadyContext: aiReadyContext as any, // Stores complete AiReadyContext JSON
+          repositoryUnderstanding: repositoryUnderstanding as any, // Stores complete RepositoryUnderstanding JSON
+          qualityScorecard: qualityScorecard as any // Stores complete QualityScorecard JSON
         }
       });
       

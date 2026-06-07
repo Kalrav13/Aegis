@@ -14,6 +14,10 @@ import { ManifestService } from './common/manifest/manifest.service';
 import { UiScannerService } from './common/registry/ui-scanner.service';
 import { ApiScannerService } from './common/registry/api-scanner.service';
 import { RegistryService } from './common/registry/registry.service';
+import { ContextBuilderService } from './common/context/context-builder.service';
+import { QualityEvaluatorService } from './common/context/quality-evaluator.service';
+import { AiService } from './common/ai/ai.service';
+import { UnderstandingAgentService } from './common/understanding/understanding-agent.service';
 
 @Module({
   imports: [
@@ -37,7 +41,11 @@ import { RegistryService } from './common/registry/registry.service';
     ManifestService,
     UiScannerService,
     ApiScannerService,
-    RegistryService
+    RegistryService,
+    ContextBuilderService,
+    QualityEvaluatorService,
+    AiService,
+    UnderstandingAgentService
   ],
   exports: [
     AppConfigService,
@@ -45,7 +53,10 @@ import { RegistryService } from './common/registry/registry.service';
     AnalysisService,
     FilterService,
     ManifestService,
-    RegistryService
+    RegistryService,
+    ContextBuilderService,
+    QualityEvaluatorService,
+    UnderstandingAgentService
   ]
 })
 export class AppModule {}

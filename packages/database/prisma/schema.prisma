@@ -30,6 +30,9 @@ model AnalysisRun {
   errorMessage         String?   @map("error_message")
   repositoryStatistics Json?     @map("repository_statistics")
   interactionRegistry  Json?     @map("interaction_registry")
+  repositoryUnderstanding Json?   @map("repository_understanding")
+  aiReadyContext          Json?   @map("ai_ready_context")
+  qualityScorecard        Json?   @map("quality_scorecard")
 
   @@map("analysis_runs")
 }
