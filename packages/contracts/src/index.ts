@@ -50,6 +50,7 @@ export * from './scenario-quality.schema';
 export * from './test-case.schema';
 export * from './automation.schema';
 export * from './coverage.schema';
+export * from './execution.schema';
 export * from './validation';
 
 

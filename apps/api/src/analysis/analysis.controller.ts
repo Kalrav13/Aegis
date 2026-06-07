@@ -5,12 +5,18 @@ import {
   CoverageReportNotFoundError,
   CoverageDataValidationError
 } from '../common/context/coverage-reporting.service';
+import {
+  ExecutionReportingService,
+  ExecutionReportNotFoundError,
+  ExecutionDataValidationError
+} from '../common/context/execution-reporting.service';
 
 @Controller()
 export class AnalysisController {
   constructor(
     private readonly analysisService: AnalysisService,
-    private readonly coverageReportingService: CoverageReportingService
+    private readonly coverageReportingService: CoverageReportingService,
+    private readonly executionReportingService: ExecutionReportingService
   ) {}
 
   @Post('projects/:projectId/analyses')
@@ -41,6 +47,21 @@ export class AnalysisController {
         throw new NotFoundException(error.message);
       }
       if (error instanceof CoverageDataValidationError) {
+        throw new UnprocessableEntityException(error.message);
+      }
+      throw new InternalServerErrorException(error.message || 'Unexpected internal reporting error');
+    }
+  }
+
+  @Get('api/analysis/:id/execution-report')
+  public async getExecutionReport(@Param('id') id: string) {
+    try {
+      return await this.executionReportingService.getExecutionReport(id);
+    } catch (error: any) {
+      if (error instanceof ExecutionReportNotFoundError) {
+        throw new NotFoundException(error.message);
+      }
+      if (error instanceof ExecutionDataValidationError) {
         throw new UnprocessableEntityException(error.message);
       }
       throw new InternalServerErrorException(error.message || 'Unexpected internal reporting error');

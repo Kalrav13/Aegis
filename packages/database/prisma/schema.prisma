@@ -44,8 +44,13 @@ model AnalysisRun {
   coverageDiscoveryContext   Json?   @map("coverage_discovery_context")
   coverageQualityScorecard   Json?   @map("coverage_quality_scorecard")
   coverageDashboardPayload   Json?   @map("coverage_dashboard_payload")
+  executionDiscoveryContext  Json?   @map("execution_discovery_context")
+  executionScorecard         Json?   @map("execution_scorecard")
+  executionDashboardPayload   Json?   @map("execution_dashboard_payload")
+  executionReportingQuality   Json?   @map("execution_reporting_quality")
   features                Feature[]
   coverageReport          CoverageReport?
+  executionRuns           ExecutionRun[]
 
   @@map("analysis_runs")
 }
@@ -170,6 +175,7 @@ model AutomationScript {
   createdAt         DateTime          @default(now()) @map("created_at")
 
   quality           AutomationQuality?
+  executionResults  ExecutionResult[]
 
   @@map("automation_scripts")
 }
@@ -223,3 +229,80 @@ model CoverageQuality {
 
   @@map("coverage_quality")
 }
+
+model ExecutionRun {
+  id                    String            @id @default(uuid())
+  analysisRunId         String            @map("analysis_run_id")
+  analysisRun           AnalysisRun       @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  executionEnvironment  String            @map("execution_environment")
+  browser               String
+  operatingSystem       String            @map("operating_system")
+  frameworkVersion      String            @map("framework_version")
+  executionSource       String            @map("execution_source")
+  externalExecutionId   String?           @map("external_execution_id")
+  startedAt             DateTime          @map("started_at")
+  completedAt           DateTime?         @map("completed_at")
+  totalTests            Int               @map("total_tests")
+  passedTests           Int               @map("passed_tests")
+  failedTests           Int               @map("failed_tests")
+  skippedTests          Int               @map("skipped_tests")
+  blockedTests          Int               @map("blocked_tests")
+  timedOutTests         Int               @map("timed_out_tests")
+  durationMs            Int               @map("duration_ms")
+  executionScorecard    Json?             @map("execution_scorecard")
+
+  results               ExecutionResult[]
+  quality               ExecutionQuality?
+
+  @@unique([analysisRunId, externalExecutionId])
+  @@map("execution_runs")
+}
+
+model ExecutionResult {
+  id                  String            @id @default(uuid())
+  executionRunId      String            @map("execution_run_id")
+  executionRun        ExecutionRun      @relation(fields: [executionRunId], references: [id], onDelete: Cascade)
+  automationScriptId  String?           @map("automation_script_id")
+  automationScript    AutomationScript? @relation(fields: [automationScriptId], references: [id], onDelete: SetNull)
+  status              String            // PASSED | FAILED | SKIPPED | BLOCKED | TIMED_OUT
+  failureCategory     String?           @map("failure_category") // ASSERTION | TIMEOUT | NETWORK | SELECTOR | UNKNOWN
+  failureSeverity     String?           @map("failure_severity") // CRITICAL | HIGH | MEDIUM | LOW
+  durationMs          Int               @map("duration_ms")
+  failureReason       String?           @map("failure_reason")
+  retryCount          Int               @default(0) @map("retry_count")
+  startedAt           DateTime          @map("started_at")
+  completedAt         DateTime          @map("completed_at")
+
+  artifacts           ExecutionArtifact[]
+
+  @@map("execution_results")
+}
+
+model ExecutionArtifact {
+  id                String            @id @default(uuid())
+  executionResultId String            @map("execution_result_id")
+  executionResult   ExecutionResult   @relation(fields: [executionResultId], references: [id], onDelete: Cascade)
+  artifactType      String            @map("artifact_type") // SCREENSHOT | VIDEO | TRACE | LOG
+  path              String            @map("path")
+  sizeBytes         Int?              @map("size_bytes")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  checksum          String?           @map("checksum")
+  expiresAt         DateTime?         @map("expires_at")
+
+  @@map("execution_artifacts")
+}
+
+model ExecutionQuality {
+  id                        String            @id @default(uuid())
+  executionRunId            String            @unique @map("execution_run_id")
+  executionRun              ExecutionRun      @relation(fields: [executionRunId], references: [id], onDelete: Cascade)
+  passRateScore             Float             @map("pass_rate_score")
+  flakyScore                Float             @map("flaky_score")
+  retryStabilityScore       Float             @map("retry_stability_score")
+  durationReliabilityScore  Float             @map("duration_reliability_score")
+  artifactCompletenessScore Float             @map("artifact_completeness_score")
+  createdAt                 DateTime          @default(now()) @map("created_at")
+
+  @@map("execution_quality")
+}
+

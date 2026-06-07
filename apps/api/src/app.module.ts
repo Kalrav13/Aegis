@@ -32,6 +32,8 @@ import { AiService } from './common/ai/ai.service';
 import { UnderstandingAgentService } from './common/understanding/understanding-agent.service';
 import { CoverageIntelligenceService } from './common/context/coverage-intelligence.service';
 import { CoverageReportingService } from './common/context/coverage-reporting.service';
+import { ExecutionIntelligenceService } from './common/context/execution-intelligence.service';
+import { ExecutionReportingService } from './common/context/execution-reporting.service';
 
 @Module({
   imports: [
@@ -73,7 +75,9 @@ import { CoverageReportingService } from './common/context/coverage-reporting.se
     AiService,
     UnderstandingAgentService,
     CoverageIntelligenceService,
-    CoverageReportingService
+    CoverageReportingService,
+    ExecutionIntelligenceService,
+    ExecutionReportingService
   ],
 
   exports: [
@@ -99,7 +103,9 @@ import { CoverageReportingService } from './common/context/coverage-reporting.se
     AutomationQualityEvaluatorService,
     UnderstandingAgentService,
     CoverageIntelligenceService,
-    CoverageReportingService
+    CoverageReportingService,
+    ExecutionIntelligenceService,
+    ExecutionReportingService
   ]
 
 })

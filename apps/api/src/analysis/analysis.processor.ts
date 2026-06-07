@@ -22,6 +22,8 @@ import { AutomationQualityEvaluatorService } from '../common/context/automation-
 import { UnderstandingAgentService } from '../common/understanding/understanding-agent.service';
 import { CoverageIntelligenceService } from '../common/context/coverage-intelligence.service';
 import { CoverageReportingService } from '../common/context/coverage-reporting.service';
+import { ExecutionIntelligenceService } from '../common/context/execution-intelligence.service';
+import { ExecutionReportingService } from '../common/context/execution-reporting.service';
 
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
@@ -53,7 +55,9 @@ export class AnalysisProcessor {
     private readonly automationGenerationAgentService: AutomationGenerationAgentService,
     private readonly automationQualityEvaluatorService: AutomationQualityEvaluatorService,
     private readonly coverageIntelligenceService: CoverageIntelligenceService,
-    private readonly coverageReportingService: CoverageReportingService
+    private readonly coverageReportingService: CoverageReportingService,
+    private readonly executionIntelligenceService: ExecutionIntelligenceService,
+    private readonly executionReportingService: ExecutionReportingService
   ) {}
 
 
@@ -326,6 +330,54 @@ export class AnalysisProcessor {
           historyRuns
         );
 
+        // Evaluate Execution Intelligence
+        const mockExecutionResults = [
+          {
+            status: 'PASSED',
+            durationMs: 150,
+            retryCount: 0
+          }
+        ];
+
+        const mockExecutionEnv = {
+          executionEnvironment: 'staging',
+          browser: 'Chromium',
+          operatingSystem: 'Linux',
+          frameworkVersion: 'Playwright v1.40.0',
+          executionSource: 'GITHUB_ACTIONS' as const,
+          externalExecutionId: `run-${analysisId}`
+        };
+
+        const executionHistoryRuns = await tx.executionRun.findMany({
+          where: {
+            analysisRun: {
+              projectId: run.projectId
+            }
+          },
+          orderBy: { startedAt: 'desc' },
+          take: 5,
+          include: {
+            results: true
+          }
+        });
+
+        const executionEval = await this.executionIntelligenceService.evaluateExecution(
+          analysisId,
+          mockExecutionResults,
+          mockExecutionEnv,
+          executionHistoryRuns
+        );
+
+        const reportEval = this.executionReportingService.generateDashboardPayload(
+          analysisId,
+          executionEval.run,
+          executionEval.scorecard,
+          executionEval.quality,
+          executionEval.processedResults,
+          executionHistoryRuns
+        );
+
+
         await tx.analysisRun.update({
           where: { id: analysisId },
           data: {
@@ -347,9 +399,86 @@ export class AnalysisProcessor {
             automationQualityScorecard: scorecardData as any,
             coverageDiscoveryContext: context as any,
             coverageQualityScorecard: scorecard as any,
-            coverageDashboardPayload: dashboardPayload as any
+            coverageDashboardPayload: dashboardPayload as any,
+            executionDiscoveryContext: { contextVersion: "1.0.0" } as any,
+            executionScorecard: executionEval.scorecard as any,
+            executionDashboardPayload: reportEval.payload as any,
+            executionReportingQuality: reportEval.reportingQuality as any
           }
         });
+
+        // Save ExecutionRun
+        await tx.executionRun.create({
+          data: {
+            id: executionEval.run.id,
+            analysisRunId: analysisId,
+            executionEnvironment: executionEval.run.executionEnvironment,
+            browser: executionEval.run.browser,
+            operatingSystem: executionEval.run.operatingSystem,
+            frameworkVersion: executionEval.run.frameworkVersion,
+            executionSource: executionEval.run.executionSource,
+            externalExecutionId: executionEval.run.externalExecutionId,
+            startedAt: new Date(executionEval.run.startedAt),
+            completedAt: executionEval.run.completedAt ? new Date(executionEval.run.completedAt) : null,
+            totalTests: executionEval.run.totalTests,
+            passedTests: executionEval.run.passedTests,
+            failedTests: executionEval.run.failedTests,
+            skippedTests: executionEval.run.skippedTests,
+            blockedTests: executionEval.run.blockedTests,
+            timedOutTests: executionEval.run.timedOutTests,
+            durationMs: executionEval.run.durationMs,
+            executionScorecard: executionEval.scorecard as any
+          }
+        });
+
+        // Save ExecutionQuality
+        await tx.executionQuality.create({
+          data: {
+            id: executionEval.quality.id,
+            executionRunId: executionEval.run.id,
+            passRateScore: executionEval.quality.passRateScore,
+            flakyScore: executionEval.quality.flakyScore,
+            retryStabilityScore: executionEval.quality.retryStabilityScore,
+            durationReliabilityScore: executionEval.quality.durationReliabilityScore,
+            artifactCompletenessScore: executionEval.quality.artifactCompletenessScore
+          }
+        });
+
+        // Save all calculated ExecutionResults
+        for (const res of executionEval.processedResults) {
+          await tx.executionResult.create({
+            data: {
+              id: res.id,
+              executionRunId: executionEval.run.id,
+              automationScriptId: res.automationScriptId,
+              status: res.status,
+              failureCategory: res.failureCategory,
+              failureSeverity: res.failureSeverity,
+              durationMs: res.durationMs,
+              failureReason: res.failureReason,
+              retryCount: res.retryCount,
+              startedAt: new Date(res.startedAt),
+              completedAt: new Date(res.completedAt)
+            }
+          });
+        }
+
+        // Save all calculated ExecutionArtifacts
+        for (const art of executionEval.processedArtifacts) {
+          await tx.executionArtifact.create({
+            data: {
+              id: art.id,
+              executionResultId: art.executionResultId,
+              artifactType: art.artifactType,
+              path: art.path,
+              sizeBytes: art.sizeBytes,
+              createdAt: new Date(art.createdAt),
+              checksum: art.checksum,
+              expiresAt: art.expiresAt ? new Date(art.expiresAt) : null
+            }
+          });
+        }
+
 
         // Save CoverageReport record
         await tx.coverageReport.create({
