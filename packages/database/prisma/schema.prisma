@@ -39,6 +39,8 @@ model AnalysisRun {
   scenarioQualityScorecard Json?   @map("scenario_quality_scorecard")
   testCaseDiscoveryContext Json?   @map("test_case_discovery_context")
   testCaseQualityScorecard Json?   @map("test_case_quality_scorecard")
+  automationDiscoveryContext Json?   @map("automation_discovery_context")
+  automationQualityScorecard Json?   @map("automation_quality_scorecard")
   features                Feature[]
 
   @@map("analysis_runs")
@@ -131,6 +133,7 @@ model TestCase {
   // Automation details (Part 6)
   automationStatus    String           @default("UNAUTOMATED") @map("automation_status")
   automationPath      String?          @map("automation_path")
+  automationScript    AutomationScript?
 
   @@map("test_cases")
 }
@@ -148,4 +151,38 @@ model TestCaseQuality {
   createdAt         DateTime     @default(now()) @map("created_at")
 
   @@map("test_case_quality")
+}
+
+model AutomationScript {
+  id                String            @id @default(uuid())
+  testCaseId        String            @unique @map("test_case_id")
+  testCase          TestCase          @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  filePath          String            @map("file_path")
+  codeContent       String            @map("code_content")
+  framework         String            @map("framework")
+  confidenceScore   Float             @map("confidence_score")
+  automationOrigin  Json              @map("automation_origin")
+  contractVersion   String            @default("1.0.0") @map("contract_version")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  quality           AutomationQuality?
+
+  @@map("automation_scripts")
+}
+
+model AutomationQuality {
+  id                      String            @id @default(uuid())
+  scriptId                String            @unique @map("script_id")
+  script                  AutomationScript  @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  qualityScore            Float             @map("quality_score")
+  syntaxScore             Float             @map("syntax_score")
+  complianceScore         Float             @map("compliance_score")
+  maintainabilityScore    Float             @map("maintainability_score")
+  groundingScore          Float             @map("grounding_score")
+  traceabilityScore       Float             @map("traceability_score")
+  crossFileIntegrityScore Float             @map("cross_file_integrity_score")
+  warnings                Json              @map("warnings")
+  createdAt               DateTime          @default(now()) @map("created_at")
+
+  @@map("automation_quality")
 }

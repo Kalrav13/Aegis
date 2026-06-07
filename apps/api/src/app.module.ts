@@ -25,6 +25,9 @@ import { ScenarioQualityEvaluatorService } from './common/context/scenario-quali
 import { TestCaseDiscoveryContextBuilderService } from './common/context/test-case-discovery-context-builder.service';
 import { TestCaseDiscoveryAgentService } from './common/context/test-case-discovery-agent.service';
 import { TestCaseQualityEvaluatorService } from './common/context/test-case-quality-evaluator.service';
+import { AutomationDiscoveryContextBuilderService } from './common/context/automation-discovery-context-builder.service';
+import { AutomationGenerationAgentService } from './common/context/automation-generation-agent.service';
+import { AutomationQualityEvaluatorService } from './common/context/automation-quality-evaluator.service';
 import { AiService } from './common/ai/ai.service';
 import { UnderstandingAgentService } from './common/understanding/understanding-agent.service';
 
@@ -62,9 +65,13 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     TestCaseDiscoveryContextBuilderService,
     TestCaseDiscoveryAgentService,
     TestCaseQualityEvaluatorService,
+    AutomationDiscoveryContextBuilderService,
+    AutomationGenerationAgentService,
+    AutomationQualityEvaluatorService,
     AiService,
     UnderstandingAgentService
   ],
+
   exports: [
     AppConfigService,
     ProjectsService,
@@ -83,7 +90,11 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     TestCaseDiscoveryContextBuilderService,
     TestCaseDiscoveryAgentService,
     TestCaseQualityEvaluatorService,
+    AutomationDiscoveryContextBuilderService,
+    AutomationGenerationAgentService,
+    AutomationQualityEvaluatorService,
     UnderstandingAgentService
   ]
+
 })
 export class AppModule {}

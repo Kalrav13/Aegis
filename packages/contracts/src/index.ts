@@ -16,6 +16,15 @@ import {
   TestCaseDiscoveryOutputSchema
 } from './test-case.schema';
 
+import {
+  AutomationFrameworkSchema,
+  AutomationScriptSchema,
+  AutomationDiscoveryContextSchema,
+  AutomationGenerationOutputSchema,
+  AutomationQualitySchema,
+  AutomationQualityScorecardSchema
+} from './automation.schema';
+
 export * from './manifest.schema';
 export * from './understanding.schema';
 export * from './context.schema';
@@ -24,7 +33,9 @@ export * from './feature-quality.schema';
 export * from './scenario.schema';
 export * from './scenario-quality.schema';
 export * from './test-case.schema';
+export * from './automation.schema';
 export * from './validation';
+
 
 // TypeScript Types inferred from Zod Schemas
 export type IntelligenceManifest = z.infer<typeof IntelligenceManifestSchema>;
@@ -56,3 +67,11 @@ export type TestCaseQuality = z.infer<typeof TestCaseQualitySchema>;
 export type TestCaseQualityScorecard = z.infer<typeof TestCaseQualityScorecardSchema>;
 export type TestCaseDiscoveryContext = z.infer<typeof TestCaseDiscoveryContextSchema>;
 export type TestCaseDiscoveryOutput = z.infer<typeof TestCaseDiscoveryOutputSchema>;
+
+export type AutomationFramework = z.infer<typeof AutomationFrameworkSchema>;
+export type AutomationScript = z.infer<typeof AutomationScriptSchema>;
+export type AutomationDiscoveryContext = z.infer<typeof AutomationDiscoveryContextSchema>;
+export type AutomationGenerationOutput = z.infer<typeof AutomationGenerationOutputSchema>;
+export type AutomationQuality = z.infer<typeof AutomationQualitySchema>;
+export type AutomationQualityScorecard = z.infer<typeof AutomationQualityScorecardSchema>;
+

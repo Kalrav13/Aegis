@@ -16,8 +16,14 @@ import { ScenarioQualityEvaluatorService } from '../common/context/scenario-qual
 import { TestCaseDiscoveryContextBuilderService } from '../common/context/test-case-discovery-context-builder.service';
 import { TestCaseDiscoveryAgentService } from '../common/context/test-case-discovery-agent.service';
 import { TestCaseQualityEvaluatorService } from '../common/context/test-case-quality-evaluator.service';
+import { AutomationDiscoveryContextBuilderService } from '../common/context/automation-discovery-context-builder.service';
+import { AutomationGenerationAgentService } from '../common/context/automation-generation-agent.service';
+import { AutomationQualityEvaluatorService } from '../common/context/automation-quality-evaluator.service';
 import { UnderstandingAgentService } from '../common/understanding/understanding-agent.service';
+
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class AnalysisProcessor {
@@ -40,8 +46,12 @@ export class AnalysisProcessor {
     private readonly scenarioQualityEvaluatorService: ScenarioQualityEvaluatorService,
     private readonly testCaseDiscoveryContextBuilderService: TestCaseDiscoveryContextBuilderService,
     private readonly testCaseDiscoveryAgentService: TestCaseDiscoveryAgentService,
-    private readonly testCaseQualityEvaluatorService: TestCaseQualityEvaluatorService
+    private readonly testCaseQualityEvaluatorService: TestCaseQualityEvaluatorService,
+    private readonly automationDiscoveryContextBuilderService: AutomationDiscoveryContextBuilderService,
+    private readonly automationGenerationAgentService: AutomationGenerationAgentService,
+    private readonly automationQualityEvaluatorService: AutomationQualityEvaluatorService
   ) {}
+
 
   /**
    * Asynchronously clones the repository, filters it, compiles the intelligence manifest, and updates database records.
@@ -228,8 +238,43 @@ export class AnalysisProcessor {
         );
       }
 
+      // 15g. Execute Automation Discovery Context Builder
+      let automationDiscoveryContext: any = null;
+      if (testCaseDiscoveryContext) {
+        automationDiscoveryContext = this.automationDiscoveryContextBuilderService.buildContext(
+          discoveredTestCases,
+          testCaseQualityScorecard,
+          interactionRegistry as any
+        );
+      }
+
+      // 15h. Execute Automation Generation Agent
+      let automationOutput: any = null;
+      if (automationDiscoveryContext && automationDiscoveryContext.automationGenerationReadiness.ready) {
+        automationOutput = await this.automationGenerationAgentService.generateAutomation(
+          automationDiscoveryContext,
+          evaluatedFeatures,
+          testCaseQualityScorecard
+        );
+      }
+
+      // 15i. Execute Automation Quality Evaluator Service
+      let automationEvaluation: any = null;
+      if (automationOutput && automationOutput.scripts.length > 0) {
+        automationEvaluation = await this.automationQualityEvaluatorService.evaluateAutomation(
+          automationOutput.scripts,
+          automationDiscoveryContext
+        );
+      }
+
       // 16. Save features and update status to COMPLETED
       await prisma.$transaction(async (tx) => {
+        // Get quality evaluation scorecard if available
+        let scorecardData: any = null;
+        if (automationEvaluation) {
+          scorecardData = automationEvaluation.scorecard;
+        }
+
         // Save Discovery Context & metadata
         await tx.analysisRun.update({
           where: { id: analysisId },
@@ -247,9 +292,12 @@ export class AnalysisProcessor {
             scenarioDiscoveryContext: scenarioDiscoveryContext as any,
             scenarioQualityScorecard: scenarioQualityScorecard as any,
             testCaseDiscoveryContext: testCaseDiscoveryContext as any,
-            testCaseQualityScorecard: testCaseQualityScorecard as any
+            testCaseQualityScorecard: testCaseQualityScorecard as any,
+            automationDiscoveryContext: automationDiscoveryContext as any,
+            automationQualityScorecard: scorecardData as any
           }
         });
+
 
         // Insert relational discovered features
         if (evaluatedFeatures.length > 0) {
@@ -358,7 +406,78 @@ export class AnalysisProcessor {
             }))
           });
         }
+
+        // Save Automation Scripts and Quality records
+        if (automationOutput && automationOutput.scripts.length > 0) {
+          const evalMap = new Map<string, any>(
+            (automationEvaluation?.evaluations || []).map((e: any) => [e.scriptId, e])
+          );
+
+          for (const script of automationOutput.scripts) {
+            await tx.automationScript.create({
+              data: {
+                id: script.scriptId,
+                testCaseId: script.testCaseId,
+                filePath: script.filePath,
+                codeContent: script.codeContent,
+                framework: script.framework,
+                confidenceScore: script.confidenceScore,
+                automationOrigin: script.automationOrigin as any,
+                contractVersion: script.contractVersion
+              }
+            });
+
+            const ev = evalMap.get(script.scriptId);
+            await tx.automationQuality.create({
+              data: {
+                id: ev?.id || randomUUID(),
+                scriptId: script.scriptId,
+                qualityScore: ev?.qualityScore ?? 100,
+                syntaxScore: ev?.syntaxScore ?? 100,
+                complianceScore: ev?.complianceScore ?? 100,
+                maintainabilityScore: ev?.maintainabilityScore ?? 100,
+                groundingScore: ev?.groundingScore ?? 100,
+                traceabilityScore: ev?.traceabilityScore ?? 100,
+                crossFileIntegrityScore: ev?.crossFileIntegrityScore ?? 100,
+                warnings: ev?.warnings ? (ev.warnings as any) : []
+              }
+            });
+
+            // Update TestCase automation status
+            await tx.testCase.update({
+              where: { id: script.testCaseId },
+              data: {
+                automationStatus: 'AUTOMATED',
+                automationPath: script.filePath
+              }
+            });
+          }
+        }
       });
+
+      // 17. PHYSICAL FILE GENERATION - Write files ONLY AFTER successful transaction commit
+      if (automationOutput && automationOutput.scripts.length > 0) {
+        for (const script of automationOutput.scripts) {
+          // Write spec file
+          const fullSpecPath = path.join(targetPath, script.filePath);
+          const specDir = path.dirname(fullSpecPath);
+          if (!fs.existsSync(specDir)) {
+            fs.mkdirSync(specDir, { recursive: true });
+          }
+          fs.writeFileSync(fullSpecPath, script.codeContent, 'utf8');
+
+          // Write page object file
+          if (script.pageObjectFilePath && script.pageObjectCode) {
+            const fullPagePath = path.join(targetPath, script.pageObjectFilePath);
+            const pageDir = path.dirname(fullPagePath);
+            if (!fs.existsSync(pageDir)) {
+              fs.mkdirSync(pageDir, { recursive: true });
+            }
+            fs.writeFileSync(fullPagePath, script.pageObjectCode, 'utf8');
+          }
+        }
+      }
+
       
       console.log(`Successfully completed intelligence manifest run ${analysisId}. Found ${intelligenceManifest.route_candidates.length} routes.`);
     } catch (error: any) {
