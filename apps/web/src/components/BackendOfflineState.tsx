@@ -45,7 +45,6 @@ export default function BackendOfflineState({
       const res = await fetch(activeHealthEndpoint, {
         method: 'GET',
         cache: 'no-store',
-        headers: { 'Bypass-Tunnel-Reminder': 'true' },
         signal: AbortSignal.timeout(5000)
       });
       return res.ok;
