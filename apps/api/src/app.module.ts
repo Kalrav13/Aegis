@@ -30,6 +30,8 @@ import { AutomationGenerationAgentService } from './common/context/automation-ge
 import { AutomationQualityEvaluatorService } from './common/context/automation-quality-evaluator.service';
 import { AiService } from './common/ai/ai.service';
 import { UnderstandingAgentService } from './common/understanding/understanding-agent.service';
+import { CoverageIntelligenceService } from './common/context/coverage-intelligence.service';
+import { CoverageReportingService } from './common/context/coverage-reporting.service';
 
 @Module({
   imports: [
@@ -69,7 +71,9 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     AutomationGenerationAgentService,
     AutomationQualityEvaluatorService,
     AiService,
-    UnderstandingAgentService
+    UnderstandingAgentService,
+    CoverageIntelligenceService,
+    CoverageReportingService
   ],
 
   exports: [
@@ -93,7 +97,9 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     AutomationDiscoveryContextBuilderService,
     AutomationGenerationAgentService,
     AutomationQualityEvaluatorService,
-    UnderstandingAgentService
+    UnderstandingAgentService,
+    CoverageIntelligenceService,
+    CoverageReportingService
   ]
 
 })

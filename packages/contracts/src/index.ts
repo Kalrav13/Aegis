@@ -25,6 +25,21 @@ import {
   AutomationQualityScorecardSchema
 } from './automation.schema';
 
+import {
+  CoverageClassificationSchema,
+  CoverageGapSummarySchema,
+  CoverageReportSchema,
+  CoverageDiscoveryContextSchema,
+  CoverageScorecardSchema,
+  ExecutiveSummarySchema,
+  CoverageGapReportSchema,
+  CoverageTrendReportSchema,
+  ReportingQualitySchema,
+  ReportingReadinessSchema,
+  CoverageDashboardPayloadSchema
+} from './coverage.schema';
+
+
 export * from './manifest.schema';
 export * from './understanding.schema';
 export * from './context.schema';
@@ -34,7 +49,9 @@ export * from './scenario.schema';
 export * from './scenario-quality.schema';
 export * from './test-case.schema';
 export * from './automation.schema';
+export * from './coverage.schema';
 export * from './validation';
+
 
 
 // TypeScript Types inferred from Zod Schemas
@@ -74,4 +91,17 @@ export type AutomationDiscoveryContext = z.infer<typeof AutomationDiscoveryConte
 export type AutomationGenerationOutput = z.infer<typeof AutomationGenerationOutputSchema>;
 export type AutomationQuality = z.infer<typeof AutomationQualitySchema>;
 export type AutomationQualityScorecard = z.infer<typeof AutomationQualityScorecardSchema>;
+
+export type CoverageClassification = z.infer<typeof CoverageClassificationSchema>;
+export type CoverageGapSummary = z.infer<typeof CoverageGapSummarySchema>;
+export type CoverageReport = z.infer<typeof CoverageReportSchema>;
+export type CoverageDiscoveryContext = z.infer<typeof CoverageDiscoveryContextSchema>;
+export type CoverageScorecard = z.infer<typeof CoverageScorecardSchema>;
+export type ExecutiveSummary = z.infer<typeof ExecutiveSummarySchema>;
+export type CoverageGapReport = z.infer<typeof CoverageGapReportSchema>;
+export type CoverageTrendReport = z.infer<typeof CoverageTrendReportSchema>;
+export type ReportingQuality = z.infer<typeof ReportingQualitySchema>;
+export type ReportingReadiness = z.infer<typeof ReportingReadinessSchema>;
+export type CoverageDashboardPayload = z.infer<typeof CoverageDashboardPayloadSchema>;
+
 

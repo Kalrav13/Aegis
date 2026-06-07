@@ -20,6 +20,8 @@ import { AutomationDiscoveryContextBuilderService } from '../common/context/auto
 import { AutomationGenerationAgentService } from '../common/context/automation-generation-agent.service';
 import { AutomationQualityEvaluatorService } from '../common/context/automation-quality-evaluator.service';
 import { UnderstandingAgentService } from '../common/understanding/understanding-agent.service';
+import { CoverageIntelligenceService } from '../common/context/coverage-intelligence.service';
+import { CoverageReportingService } from '../common/context/coverage-reporting.service';
 
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
@@ -49,7 +51,9 @@ export class AnalysisProcessor {
     private readonly testCaseQualityEvaluatorService: TestCaseQualityEvaluatorService,
     private readonly automationDiscoveryContextBuilderService: AutomationDiscoveryContextBuilderService,
     private readonly automationGenerationAgentService: AutomationGenerationAgentService,
-    private readonly automationQualityEvaluatorService: AutomationQualityEvaluatorService
+    private readonly automationQualityEvaluatorService: AutomationQualityEvaluatorService,
+    private readonly coverageIntelligenceService: CoverageIntelligenceService,
+    private readonly coverageReportingService: CoverageReportingService
   ) {}
 
 
@@ -274,8 +278,54 @@ export class AnalysisProcessor {
         if (automationEvaluation) {
           scorecardData = automationEvaluation.scorecard;
         }
-
         // Save Discovery Context & metadata
+        const upstreamReady = (testCaseDiscoveryContext?.testCaseReadiness?.ready ?? true) &&
+                              (automationDiscoveryContext?.automationGenerationReadiness?.ready ?? true);
+        const upstreamBlockingReasons = [
+          ...(testCaseDiscoveryContext?.testCaseReadiness?.blockingReasons || []),
+          ...(automationDiscoveryContext?.automationGenerationReadiness?.blockingReasons || [])
+        ];
+
+        const { report, scorecard, quality, context } = await this.coverageIntelligenceService.evaluateCoverage(
+          analysisId,
+          evaluatedFeatures,
+          discoveredScenarios,
+          discoveredTestCases,
+          automationOutput?.scripts || [],
+          automationEvaluation?.evaluations || [],
+          testCaseQualityScorecard?.testCasesEvaluations || [],
+          { ready: upstreamReady, blockingReasons: upstreamBlockingReasons }
+        );
+
+        // Compile the dashboard payload cache in memory
+        const historyRuns = await tx.analysisRun.findMany({
+          where: {
+            projectId: run.projectId,
+            status: 'COMPLETED'
+          },
+          orderBy: { completedAt: 'desc' },
+          take: 5,
+          include: {
+            coverageReport: true
+          }
+        });
+
+        // Set completedAt on current run representation to ensure correct trend calculations
+        const currentRun = {
+          ...run,
+          completedAt: new Date()
+        };
+
+        const dashboardPayload = this.coverageReportingService.buildDashboardPayload(
+          currentRun,
+          report,
+          quality,
+          evaluatedFeatures,
+          discoveredScenarios,
+          discoveredTestCases,
+          historyRuns
+        );
+
         await tx.analysisRun.update({
           where: { id: analysisId },
           data: {
@@ -294,7 +344,40 @@ export class AnalysisProcessor {
             testCaseDiscoveryContext: testCaseDiscoveryContext as any,
             testCaseQualityScorecard: testCaseQualityScorecard as any,
             automationDiscoveryContext: automationDiscoveryContext as any,
-            automationQualityScorecard: scorecardData as any
+            automationQualityScorecard: scorecardData as any,
+            coverageDiscoveryContext: context as any,
+            coverageQualityScorecard: scorecard as any,
+            coverageDashboardPayload: dashboardPayload as any
+          }
+        });
+
+        // Save CoverageReport record
+        await tx.coverageReport.create({
+          data: {
+            id: report.reportId,
+            analysisRunId: analysisId,
+            featureCoverage: report.featureCoverage,
+            scenarioCoverage: report.scenarioCoverage,
+            testCaseCoverage: report.testCaseCoverage,
+            automationCoverage: report.automationCoverage,
+            executionReadinessScore: report.executionReadinessScore,
+            coverageConfidenceScore: report.coverageConfidenceScore,
+            coverageClassification: report.coverageClassification,
+            coverageGapSummary: report.coverageGapSummary as any,
+            details: report.details as any
+          }
+        });
+
+        // Save CoverageQuality record
+        await tx.coverageQuality.create({
+          data: {
+            id: quality.id,
+            reportId: report.reportId,
+            traceabilityCompleteness: quality.traceabilityCompleteness,
+            coverageCompleteness: quality.coverageCompleteness,
+            automationCompleteness: quality.automationCompleteness,
+            readinessQuality: quality.readinessQuality,
+            reportingQuality: quality.reportingQuality
           }
         });
 

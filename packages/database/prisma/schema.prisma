@@ -41,7 +41,11 @@ model AnalysisRun {
   testCaseQualityScorecard Json?   @map("test_case_quality_scorecard")
   automationDiscoveryContext Json?   @map("automation_discovery_context")
   automationQualityScorecard Json?   @map("automation_quality_scorecard")
+  coverageDiscoveryContext   Json?   @map("coverage_discovery_context")
+  coverageQualityScorecard   Json?   @map("coverage_quality_scorecard")
+  coverageDashboardPayload   Json?   @map("coverage_dashboard_payload")
   features                Feature[]
+  coverageReport          CoverageReport?
 
   @@map("analysis_runs")
 }
@@ -185,4 +189,37 @@ model AutomationQuality {
   createdAt               DateTime          @default(now()) @map("created_at")
 
   @@map("automation_quality")
+}
+
+model CoverageReport {
+  id                      String          @id @default(uuid())
+  analysisRunId           String          @unique @map("analysis_run_id")
+  analysisRun             AnalysisRun     @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  featureCoverage         Float           @map("feature_coverage")
+  scenarioCoverage        Float           @map("scenario_coverage")
+  testCaseCoverage        Float           @map("test_case_coverage")
+  automationCoverage      Float           @map("automation_coverage")
+  executionReadinessScore Float           @map("execution_readiness_score")
+  coverageConfidenceScore Float           @map("coverage_confidence_score")
+  coverageClassification  String          @map("coverage_classification")
+  coverageGapSummary      Json            @map("coverage_gap_summary")
+  details                 Json            @map("details")
+  quality                 CoverageQuality?
+  createdAt               DateTime        @default(now()) @map("created_at")
+
+  @@map("coverage_reports")
+}
+
+model CoverageQuality {
+  id                       String         @id @default(uuid())
+  reportId                 String         @unique @map("report_id")
+  report                   CoverageReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  traceabilityCompleteness Float          @map("traceability_completeness")
+  coverageCompleteness     Float          @map("coverage_completeness")
+  automationCompleteness   Float          @map("automation_completeness")
+  readinessQuality         Float          @map("readiness_quality")
+  reportingQuality         Float          @map("reporting_quality")
+  createdAt                DateTime       @default(now()) @map("created_at")
+
+  @@map("coverage_quality")
 }
