@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const environmentSchema = z.object({
-  DATABASE_URL: z.string().url('DATABASE_URL must be a valid connection string'),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   PORT: z.coerce.number().default(3001),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
   JWT_SECRET: z.string().min(8, 'JWT_SECRET must be at least 8 characters long'),

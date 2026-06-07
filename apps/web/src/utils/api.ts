@@ -25,7 +25,9 @@ export function getApiBaseUrl(): string {
 export async function fetchProjects(): Promise<Project[]> {
   try {
     const baseUrl = getApiBaseUrl();
-    const res = await fetch(`${baseUrl}/projects`);
+    const res = await fetch(`${baseUrl}/projects`, {
+      headers: { 'Bypass-Tunnel-Reminder': 'true' }
+    });
     if (!res.ok) throw new Error('Failed to fetch projects');
     return await res.json();
   } catch (err) {
@@ -46,7 +48,10 @@ export async function createProject(data: { name: string; repoUrl: string; branc
   const baseUrl = getApiBaseUrl();
   const res = await fetch(`${baseUrl}/projects`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true'
+    },
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -58,7 +63,8 @@ export async function createProject(data: { name: string; repoUrl: string; branc
 export async function triggerAnalysis(projectId: string): Promise<AnalysisRun> {
   const baseUrl = getApiBaseUrl();
   const res = await fetch(`${baseUrl}/projects/${projectId}/analyses`, {
-    method: 'POST'
+    method: 'POST',
+    headers: { 'Bypass-Tunnel-Reminder': 'true' }
   });
   if (!res.ok) {
     throw new Error('Failed to trigger analysis run');
@@ -69,7 +75,9 @@ export async function triggerAnalysis(projectId: string): Promise<AnalysisRun> {
 export async function fetchProjectHistory(projectId: string): Promise<AnalysisRun[]> {
   try {
     const baseUrl = getApiBaseUrl();
-    const res = await fetch(`${baseUrl}/projects/${projectId}/analyses`);
+    const res = await fetch(`${baseUrl}/projects/${projectId}/analyses`, {
+      headers: { 'Bypass-Tunnel-Reminder': 'true' }
+    });
     if (!res.ok) throw new Error('Failed to fetch history');
     return await res.json();
   } catch (err) {
@@ -80,7 +88,9 @@ export async function fetchProjectHistory(projectId: string): Promise<AnalysisRu
 
 export async function fetchAnalysisStatus(analysisId: string): Promise<AnalysisRun> {
   const baseUrl = getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/analyses/${analysisId}`);
+  const res = await fetch(`${baseUrl}/analyses/${analysisId}`, {
+    headers: { 'Bypass-Tunnel-Reminder': 'true' }
+  });
   if (!res.ok) {
     throw new Error('Failed to fetch analysis status');
   }
