@@ -37,6 +37,8 @@ model AnalysisRun {
   featureQualityScorecard Json?   @map("feature_quality_scorecard")
   scenarioDiscoveryContext Json?   @map("scenario_discovery_context")
   scenarioQualityScorecard Json?   @map("scenario_quality_scorecard")
+  testCaseDiscoveryContext Json?   @map("test_case_discovery_context")
+  testCaseQualityScorecard Json?   @map("test_case_quality_scorecard")
   features                Feature[]
 
   @@map("analysis_runs")
@@ -97,5 +99,53 @@ model Scenario {
   confidenceReliabilityScore Float?      @map("confidence_reliability_score")
   qualityWarnings            Json?       @map("quality_warnings")
 
+  // Implicit many-to-many relationship with TestCase
+  testCases                  TestCase[]
+
   @@map("scenarios")
+}
+
+model TestCase {
+  id                  String           @id @default(uuid())
+  testCaseKey         String           @map("test_case_key") // e.g. TC-LOGIN-001
+  testCaseName        String           @map("test_case_name")
+  testCaseType        String           @map("test_case_type") // FUNCTIONAL | NEGATIVE | EDGE_CASE | SECURITY | PERFORMANCE | INTEGRATION
+  priority            String           @map("priority")
+  description         String
+  preconditions       Json             // Array of strings
+  steps               Json             // Array of steps: { stepNumber, action, expectedResult }
+  expectedResult      String           @map("expected_result")
+  evidence            Json             // Array of strings
+  riskLevel           String           @map("risk_level")
+  coverageTargets     Json             @map("coverage_targets") // { routes: string[], apis: string[], forms: string[] }
+  testCaseOrigin      Json?            @map("test_case_origin") // { featureIds: string[], workflowIds: string[], scenarioIds: string[] }
+  contractVersion     String           @default("1.0.0") @map("contract_version")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  
+  // Implicit many-to-many relationship with Scenario
+  scenarios           Scenario[]
+
+  // Quality scorecard mapping (One-to-One)
+  quality             TestCaseQuality?
+  
+  // Automation details (Part 6)
+  automationStatus    String           @default("UNAUTOMATED") @map("automation_status")
+  automationPath      String?          @map("automation_path")
+
+  @@map("test_cases")
+}
+
+model TestCaseQuality {
+  id                String       @id @default(uuid())
+  testCaseId        String       @unique @map("test_case_id")
+  testCase          TestCase     @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  qualityScore      Float        @map("quality_score")
+  completenessScore Float        @map("completeness_score")
+  groundingScore    Float        @map("grounding_score")
+  traceabilityScore Float        @map("traceability_score")
+  stepStructureScore Float       @map("step_structure_score")
+  warnings          Json         @map("warnings")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  @@map("test_case_quality")
 }

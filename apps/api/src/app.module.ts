@@ -22,6 +22,9 @@ import { FeatureQualityEvaluatorService } from './common/context/feature-quality
 import { ScenarioDiscoveryContextBuilderService } from './common/context/scenario-discovery-context-builder.service';
 import { ScenarioDiscoveryAgentService } from './common/context/scenario-discovery-agent.service';
 import { ScenarioQualityEvaluatorService } from './common/context/scenario-quality-evaluator.service';
+import { TestCaseDiscoveryContextBuilderService } from './common/context/test-case-discovery-context-builder.service';
+import { TestCaseDiscoveryAgentService } from './common/context/test-case-discovery-agent.service';
+import { TestCaseQualityEvaluatorService } from './common/context/test-case-quality-evaluator.service';
 import { AiService } from './common/ai/ai.service';
 import { UnderstandingAgentService } from './common/understanding/understanding-agent.service';
 
@@ -56,6 +59,9 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     ScenarioDiscoveryContextBuilderService,
     ScenarioDiscoveryAgentService,
     ScenarioQualityEvaluatorService,
+    TestCaseDiscoveryContextBuilderService,
+    TestCaseDiscoveryAgentService,
+    TestCaseQualityEvaluatorService,
     AiService,
     UnderstandingAgentService
   ],
@@ -74,6 +80,9 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     ScenarioDiscoveryContextBuilderService,
     ScenarioDiscoveryAgentService,
     ScenarioQualityEvaluatorService,
+    TestCaseDiscoveryContextBuilderService,
+    TestCaseDiscoveryAgentService,
+    TestCaseQualityEvaluatorService,
     UnderstandingAgentService
   ]
 })

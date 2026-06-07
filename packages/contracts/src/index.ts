@@ -3,6 +3,18 @@ import { IntelligenceManifestSchema, InteractionRegistrySchema } from './manifes
 import { RepositoryUnderstandingSchema, InferenceMetaDataSchema, QualityScorecardSchema } from './understanding.schema';
 import { AiReadyContextSchema } from './context.schema';
 import { FeatureSchema, FeatureDiscoveryOutputSchema, DiscoveryContextSchema } from './feature.schema';
+import { FeatureQualityScoreSchema, FeatureQualityScorecardSchema } from './feature-quality.schema';
+import { ScenarioTypeSchema, ScenarioSchema, ScenarioDiscoveryOutputSchema, ScenarioDiscoveryContextSchema } from './scenario.schema';
+import { ScenarioQualityScoreSchema, ScenarioQualityScorecardSchema } from './scenario-quality.schema';
+import {
+  TestStepSchema,
+  TestCaseTypeSchema,
+  TestCaseSchema,
+  TestCaseQualitySchema,
+  TestCaseQualityScorecardSchema,
+  TestCaseDiscoveryContextSchema,
+  TestCaseDiscoveryOutputSchema
+} from './test-case.schema';
 
 export * from './manifest.schema';
 export * from './understanding.schema';
@@ -11,6 +23,7 @@ export * from './feature.schema';
 export * from './feature-quality.schema';
 export * from './scenario.schema';
 export * from './scenario-quality.schema';
+export * from './test-case.schema';
 export * from './validation';
 
 // TypeScript Types inferred from Zod Schemas
@@ -20,6 +33,26 @@ export type RepositoryUnderstanding = z.infer<typeof RepositoryUnderstandingSche
 export type InferenceMetaData = z.infer<typeof InferenceMetaDataSchema>;
 export type AiReadyContext = z.infer<typeof AiReadyContextSchema>;
 export type QualityScorecard = z.infer<typeof QualityScorecardSchema>;
+
 export type Feature = z.infer<typeof FeatureSchema>;
 export type FeatureDiscoveryOutput = z.infer<typeof FeatureDiscoveryOutputSchema>;
 export type DiscoveryContext = z.infer<typeof DiscoveryContextSchema>;
+
+export type FeatureQualityScore = z.infer<typeof FeatureQualityScoreSchema>;
+export type FeatureQualityScorecard = z.infer<typeof FeatureQualityScorecardSchema>;
+
+export type ScenarioType = z.infer<typeof ScenarioTypeSchema>;
+export type Scenario = z.infer<typeof ScenarioSchema>;
+export type ScenarioDiscoveryOutput = z.infer<typeof ScenarioDiscoveryOutputSchema>;
+export type ScenarioDiscoveryContext = z.infer<typeof ScenarioDiscoveryContextSchema>;
+
+export type ScenarioQualityScore = z.infer<typeof ScenarioQualityScoreSchema>;
+export type ScenarioQualityScorecard = z.infer<typeof ScenarioQualityScorecardSchema>;
+
+export type TestStep = z.infer<typeof TestStepSchema>;
+export type TestCaseType = z.infer<typeof TestCaseTypeSchema>;
+export type TestCase = z.infer<typeof TestCaseSchema>;
+export type TestCaseQuality = z.infer<typeof TestCaseQualitySchema>;
+export type TestCaseQualityScorecard = z.infer<typeof TestCaseQualityScorecardSchema>;
+export type TestCaseDiscoveryContext = z.infer<typeof TestCaseDiscoveryContextSchema>;
+export type TestCaseDiscoveryOutput = z.infer<typeof TestCaseDiscoveryOutputSchema>;

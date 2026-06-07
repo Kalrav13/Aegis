@@ -13,6 +13,9 @@ import { FeatureQualityEvaluatorService } from '../common/context/feature-qualit
 import { ScenarioDiscoveryContextBuilderService } from '../common/context/scenario-discovery-context-builder.service';
 import { ScenarioDiscoveryAgentService } from '../common/context/scenario-discovery-agent.service';
 import { ScenarioQualityEvaluatorService } from '../common/context/scenario-quality-evaluator.service';
+import { TestCaseDiscoveryContextBuilderService } from '../common/context/test-case-discovery-context-builder.service';
+import { TestCaseDiscoveryAgentService } from '../common/context/test-case-discovery-agent.service';
+import { TestCaseQualityEvaluatorService } from '../common/context/test-case-quality-evaluator.service';
 import { UnderstandingAgentService } from '../common/understanding/understanding-agent.service';
 import { randomUUID } from 'crypto';
 
@@ -34,7 +37,10 @@ export class AnalysisProcessor {
     private readonly featureQualityEvaluatorService: FeatureQualityEvaluatorService,
     private readonly scenarioDiscoveryContextBuilderService: ScenarioDiscoveryContextBuilderService,
     private readonly scenarioDiscoveryAgentService: ScenarioDiscoveryAgentService,
-    private readonly scenarioQualityEvaluatorService: ScenarioQualityEvaluatorService
+    private readonly scenarioQualityEvaluatorService: ScenarioQualityEvaluatorService,
+    private readonly testCaseDiscoveryContextBuilderService: TestCaseDiscoveryContextBuilderService,
+    private readonly testCaseDiscoveryAgentService: TestCaseDiscoveryAgentService,
+    private readonly testCaseQualityEvaluatorService: TestCaseQualityEvaluatorService
   ) {}
 
   /**
@@ -175,6 +181,53 @@ export class AnalysisProcessor {
         );
       }
 
+      // 15d. Execute Test Case Discovery Context Builder
+      let testCaseDiscoveryContext: any = null;
+      if (scenarioDiscoveryContext) {
+        const candidateAssets = {
+          routes: scenarioDiscoveryContext.candidateAssets?.routes || [],
+          apis: scenarioDiscoveryContext.candidateAssets?.apis || [],
+          forms: scenarioDiscoveryContext.candidateAssets?.forms || []
+        };
+
+        const scoresMap = new Map<string, any>(
+          (scenarioQualityScorecard?.scenariosEvaluations || []).map((e: any) => [e.scenarioId, e])
+        );
+
+        const scenariosWithScores = discoveredScenarios.map(s => {
+          const score = scoresMap.get(s.scenarioId);
+          return {
+            ...s,
+            id: s.scenarioId,
+            qualityScore: score?.qualityScore ?? null
+          };
+        });
+
+        testCaseDiscoveryContext = this.testCaseDiscoveryContextBuilderService.buildContext(
+          scenariosWithScores,
+          scenarioQualityScorecard,
+          candidateAssets
+        );
+      }
+
+      // 15e. Execute Test Case Discovery Agent
+      let discoveredTestCases: any[] = [];
+      let testCaseGenerationReadiness: any = null;
+      if (testCaseDiscoveryContext && testCaseDiscoveryContext.testCaseReadiness.ready) {
+        const agentResult = await this.testCaseDiscoveryAgentService.discoverTestCases(testCaseDiscoveryContext);
+        discoveredTestCases = agentResult.testCases;
+        testCaseGenerationReadiness = agentResult.readiness;
+      }
+
+      // 15f. Execute Test Case Quality Evaluator
+      let testCaseQualityScorecard: any = null;
+      if (testCaseDiscoveryContext) {
+        testCaseQualityScorecard = await this.testCaseQualityEvaluatorService.evaluate(
+          discoveredTestCases,
+          testCaseDiscoveryContext
+        );
+      }
+
       // 16. Save features and update status to COMPLETED
       await prisma.$transaction(async (tx) => {
         // Save Discovery Context & metadata
@@ -192,7 +245,9 @@ export class AnalysisProcessor {
             discoveryContext: discoveryContext as any,
             featureQualityScorecard: featureQualityScorecard as any,
             scenarioDiscoveryContext: scenarioDiscoveryContext as any,
-            scenarioQualityScorecard: scenarioQualityScorecard as any
+            scenarioQualityScorecard: scenarioQualityScorecard as any,
+            testCaseDiscoveryContext: testCaseDiscoveryContext as any,
+            testCaseQualityScorecard: testCaseQualityScorecard as any
           }
         });
 
@@ -258,6 +313,50 @@ export class AnalysisProcessor {
               }
             });
           }
+        }
+
+        // Insert relational discovered test cases
+        if (discoveredTestCases.length > 0) {
+          for (const tc of discoveredTestCases) {
+            await tx.testCase.create({
+              data: {
+                id: tc.testCaseId,
+                testCaseKey: tc.testCaseKey,
+                testCaseName: tc.testCaseName,
+                testCaseType: tc.testCaseType,
+                priority: tc.priority,
+                description: tc.description,
+                preconditions: tc.preconditions,
+                steps: tc.steps,
+                expectedResult: tc.expectedResult,
+                evidence: tc.evidence,
+                riskLevel: tc.riskLevel,
+                coverageTargets: tc.coverageTargets,
+                testCaseOrigin: tc.testCaseOrigin,
+                contractVersion: tc.contractVersion,
+                automationStatus: tc.automationStatus,
+                automationPath: tc.automationPath,
+                scenarios: {
+                  connect: tc.testCaseOrigin.scenarioIds.map((id: string) => ({ id }))
+                }
+              }
+            });
+          }
+        }
+
+        // Insert relational discovered test case quality records
+        if (testCaseQualityScorecard && testCaseQualityScorecard.testCasesEvaluations && testCaseQualityScorecard.testCasesEvaluations.length > 0) {
+          await tx.testCaseQuality.createMany({
+            data: testCaseQualityScorecard.testCasesEvaluations.map((e: any) => ({
+              testCaseId: e.testCaseId,
+              qualityScore: e.qualityScore,
+              completenessScore: e.completenessScore,
+              groundingScore: e.groundingScore,
+              traceabilityScore: e.traceabilityScore,
+              stepStructureScore: e.stepStructureScore,
+              warnings: e.warnings as any
+            }))
+          });
         }
       });
       
