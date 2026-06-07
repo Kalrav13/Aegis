@@ -1,19 +1,25 @@
 import { Project, AnalysisRun } from '../types';
 
 export function getApiBaseUrl(): string {
+  let url = '';
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
-  }
-  if (typeof window !== 'undefined') {
+    url = process.env.NEXT_PUBLIC_API_URL;
+  } else if (typeof window !== 'undefined') {
     const savedUrl = localStorage.getItem('testlens_api_url');
     if (savedUrl) {
-      return savedUrl.replace(/\/$/, '');
-    }
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return 'http://localhost:3001/api/v1';
+      url = savedUrl;
+    } else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      url = 'http://localhost:3001/api/v1';
     }
   }
-  return '';
+
+  if (url) {
+    url = url.replace(/\/$/, '');
+    if (!url.endsWith('/api/v1') && !url.endsWith('/api')) {
+      url = `${url}/api/v1`;
+    }
+  }
+  return url;
 }
 
 export async function fetchProjects(): Promise<Project[]> {
