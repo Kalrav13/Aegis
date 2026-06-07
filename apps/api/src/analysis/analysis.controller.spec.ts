@@ -6,6 +6,9 @@ import {
   CoverageReportNotFoundError,
   CoverageDataValidationError
 } from '../common/context/coverage-reporting.service';
+import {
+  ExecutionReportingService
+} from '../common/context/execution-reporting.service';
 import { NotFoundException, UnprocessableEntityException, InternalServerErrorException } from '@nestjs/common';
 
 describe('AnalysisController', () => {
@@ -22,6 +25,10 @@ describe('AnalysisController', () => {
     generateReport: jest.fn()
   };
 
+  const mockExecutionService = {
+    getExecutionReport: jest.fn()
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalysisController],
@@ -33,6 +40,10 @@ describe('AnalysisController', () => {
         {
           provide: CoverageReportingService,
           useValue: mockReportingService
+        },
+        {
+          provide: ExecutionReportingService,
+          useValue: mockExecutionService
         }
       ]
     }).compile();

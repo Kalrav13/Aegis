@@ -2,13 +2,12 @@ import { Project, AnalysisRun } from '../types';
 
 export function getApiBaseUrl(): string {
   let url = '';
-  if (process.env.NEXT_PUBLIC_API_URL) {
+  if (typeof window !== 'undefined' && localStorage.getItem('testlens_api_url')) {
+    url = localStorage.getItem('testlens_api_url')!;
+  } else if (process.env.NEXT_PUBLIC_API_URL) {
     url = process.env.NEXT_PUBLIC_API_URL;
   } else if (typeof window !== 'undefined') {
-    const savedUrl = localStorage.getItem('testlens_api_url');
-    if (savedUrl) {
-      url = savedUrl;
-    } else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       url = 'http://localhost:3001/api/v1';
     }
   }

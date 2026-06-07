@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { WifiOff, RefreshCw, Loader2 } from 'lucide-react';
+import { WifiOff, RefreshCw, Loader2, AlertCircle, ShieldAlert, Terminal, CheckCircle } from 'lucide-react';
 import { getApiBaseUrl } from '../utils/api';
 
 interface BackendOfflineStateProps {
@@ -11,6 +11,13 @@ interface BackendOfflineStateProps {
   onReconnected?: () => void;
 }
 
+type ConnectionStatus = {
+  isOnline: boolean;
+  errorType: 'API_OFFLINE' | 'API_ROUTE_NOT_FOUND' | 'AUTHORIZATION_ERROR' | 'VALIDATION_ERROR' | 'SERVER_ERROR' | null;
+  statusCode: number | null;
+  details: string | null;
+};
+
 export default function BackendOfflineState({
   healthEndpoint,
   autoRetryIntervalMs = 10000,
@@ -20,6 +27,13 @@ export default function BackendOfflineState({
   const [isRetrying, setIsRetrying] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [tempApiUrl, setTempApiUrl] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
+    isOnline: true,
+    errorType: null,
+    statusCode: null,
+    details: null
+  });
+  
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const onReconnectedRef = useRef(onReconnected);
@@ -36,29 +50,72 @@ export default function BackendOfflineState({
     window.location.reload();
   };
 
+  const handleClearUrl = () => {
+    localStorage.removeItem('testlens_api_url');
+    window.location.reload();
+  };
+
   useEffect(() => {
     onReconnectedRef.current = onReconnected;
   }, [onReconnected]);
 
-  const checkConnectivity = useCallback(async (): Promise<boolean> => {
+  const checkConnectivity = useCallback(async (): Promise<ConnectionStatus> => {
     try {
       const res = await fetch(activeHealthEndpoint, {
         method: 'GET',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000)
       });
-      return res.ok;
-    } catch {
-      return false;
+      
+      if (res.ok) {
+        return {
+          isOnline: true,
+          errorType: null,
+          statusCode: res.status,
+          details: 'Healthy connection established.'
+        };
+      }
+      
+      let errorType: ConnectionStatus['errorType'] = 'SERVER_ERROR';
+      let details = `HTTP ${res.status} ${res.statusText || ''}`;
+      
+      if (res.status === 404) {
+        errorType = 'API_ROUTE_NOT_FOUND';
+        details = 'The health check endpoint was not found (404). Check global prefixes, controller exclusions, or routing configuration.';
+      } else if (res.status === 401 || res.status === 403) {
+        errorType = 'AUTHORIZATION_ERROR';
+        details = 'Access to the health check endpoint is unauthorized (401/403). Check CORS headers or authorization middleware.';
+      } else if (res.status === 422) {
+        errorType = 'VALIDATION_ERROR';
+        details = 'The server rejected the parameters (422 validation failure).';
+      } else if (res.status >= 500) {
+        errorType = 'SERVER_ERROR';
+        details = 'The server encountered an internal server error (500) while processing the health check request.';
+      }
+      
+      return {
+        isOnline: false,
+        errorType,
+        statusCode: res.status,
+        details
+      };
+    } catch (err: any) {
+      return {
+        isOnline: false,
+        errorType: 'API_OFFLINE',
+        statusCode: null,
+        details: err?.message || 'Failed to connect. The API server may be offline, DNS resolving failed, or browser CORS policy blocked the request.'
+      };
     }
   }, [activeHealthEndpoint]);
 
   const handleRetry = useCallback(async () => {
     setIsRetrying(true);
-    const isOnline = await checkConnectivity();
+    const statusObj = await checkConnectivity();
+    setConnectionStatus(statusObj);
     setIsRetrying(false);
 
-    if (isOnline) {
+    if (statusObj.isOnline) {
       setIsOffline(false);
       onReconnectedRef.current?.();
     }
@@ -69,9 +126,12 @@ export default function BackendOfflineState({
     let mounted = true;
 
     const initialCheck = async () => {
-      const isOnline = await checkConnectivity();
-      if (mounted && !isOnline) {
-        setIsOffline(true);
+      const statusObj = await checkConnectivity();
+      if (mounted) {
+        setConnectionStatus(statusObj);
+        if (!statusObj.isOnline) {
+          setIsOffline(true);
+        }
       }
     };
 
@@ -98,8 +158,9 @@ export default function BackendOfflineState({
     }, 1000);
 
     timerRef.current = setInterval(async () => {
-      const isOnline = await checkConnectivity();
-      if (isOnline) {
+      const statusObj = await checkConnectivity();
+      setConnectionStatus(statusObj);
+      if (statusObj.isOnline) {
         setIsOffline(false);
         onReconnectedRef.current?.();
       }
@@ -113,11 +174,50 @@ export default function BackendOfflineState({
 
   if (!isOffline) return null;
 
+  // Resolve styling based on error classification
+  const getClassificationUI = () => {
+    switch (connectionStatus.errorType) {
+      case 'API_OFFLINE':
+        return {
+          label: 'API Server Offline',
+          badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+          indicatorColor: 'from-rose-500 via-red-500 to-rose-500'
+        };
+      case 'API_ROUTE_NOT_FOUND':
+        return {
+          label: 'Route Not Found (404)',
+          badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+          indicatorColor: 'from-amber-500 via-orange-500 to-amber-500'
+        };
+      case 'AUTHORIZATION_ERROR':
+        return {
+          label: 'Authorization Error (401/403)',
+          badgeColor: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
+          indicatorColor: 'from-violet-500 via-indigo-500 to-violet-500'
+        };
+      case 'VALIDATION_ERROR':
+        return {
+          label: 'Validation Error (422)',
+          badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+          indicatorColor: 'from-cyan-500 via-teal-500 to-cyan-500'
+        };
+      case 'SERVER_ERROR':
+      default:
+        return {
+          label: 'Server Error (500+)',
+          badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+          indicatorColor: 'from-rose-600 via-pink-500 to-rose-600'
+        };
+    }
+  };
+
+  const ui = getClassificationUI();
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-      <div className="glass-card w-full max-w-sm border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="glass-card w-full max-w-md border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden">
         {/* Animated top accent bar */}
-        <div className="h-1 w-full bg-gradient-to-r from-rose-500 via-amber-500 to-rose-500 animate-pulse" />
+        <div className={`h-1 w-full bg-gradient-to-r ${ui.indicatorColor} animate-pulse`} />
 
         <div className="p-8 flex flex-col items-center text-center space-y-5">
           {/* Animated icon */}
@@ -132,10 +232,33 @@ export default function BackendOfflineState({
             <h3 className="font-bold text-lg text-slate-100">
               Unable to Connect
             </h3>
-            <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
-              TestLens API is not responding. Please verify the backend service is running
-              and accessible.
+            <p className="text-sm text-slate-450 leading-relaxed max-w-sm">
+              The TestLens frontend client was unable to connect to the backend server.
             </p>
+          </div>
+
+          {/* Classification details */}
+          <div className="w-full bg-slate-900/90 rounded-xl border border-slate-800 p-4 text-left space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase">Classification</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${ui.badgeColor}`}>
+                {ui.label}
+              </span>
+            </div>
+            
+            <div className="space-y-1">
+              <span className="block text-[10px] text-slate-500 font-semibold uppercase">Target Endpoint</span>
+              <div className="font-mono text-[11px] text-slate-300 break-all select-all bg-slate-950/60 p-2 rounded border border-slate-900 flex items-center justify-between">
+                <span>{activeHealthEndpoint}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <span className="block text-[10px] text-slate-500 font-semibold uppercase">Error Diagnostics</span>
+              <p className="text-[11px] text-slate-400 leading-normal bg-slate-950/40 p-2 rounded border border-slate-900">
+                {connectionStatus.details}
+              </p>
+            </div>
           </div>
 
           {/* Countdown indicator */}
@@ -161,25 +284,33 @@ export default function BackendOfflineState({
             {/* Configurable URL */}
             <div className="w-full pt-4 border-t border-slate-800/80 space-y-2 text-left">
               <label className="block text-[10px] text-slate-500 font-semibold uppercase">
-                API Connection URL
+                API Connection URL Customizer
               </label>
               <div className="flex space-x-2">
                 <input
                   type="text"
                   value={tempApiUrl}
                   onChange={(e) => setTempApiUrl(e.target.value)}
-                  placeholder="http://localhost:3001/api/v1"
+                  placeholder="https://testlens-production.up.railway.app"
                   className="flex-1 bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-indigo-500"
                 />
                 <button
                   onClick={handleSaveUrl}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors"
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
                 >
                   Save
                 </button>
+                {localStorage.getItem('testlens_api_url') && (
+                  <button
+                    onClick={handleClearUrl}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors"
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
-              <span className="block text-[9px] text-slate-500 leading-normal">
-                If the browser blocks localhost requests, deploy your backend or enter your server's API URL.
+              <span className="block text-[9.5px] text-slate-500 leading-normal">
+                Leave empty or click Reset to fallback to Vercel's environment default. If overriding, type the base domain only (e.g., <code>https://your-api.up.railway.app</code>).
               </span>
             </div>
           </div>

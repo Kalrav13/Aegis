@@ -20,9 +20,23 @@ export class AnalysisController {
     private readonly executionReportingService: ExecutionReportingService
   ) {}
 
+  @Get()
+  public async getRoot() {
+    return {
+      status: 'ok',
+      service: 'testlens-api',
+      version: '1.0.0',
+      message: 'TestLens API Gateway is active.'
+    };
+  }
+
   @Get('health')
   public async getHealth() {
-    return { status: 'UP' };
+    return {
+      status: 'ok',
+      service: 'testlens-api',
+      version: '1.0.0'
+    };
   }
 
   @Post('projects/:projectId/analyses')
