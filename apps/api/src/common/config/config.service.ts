@@ -21,4 +21,8 @@ export class AppConfigService {
   get jwtSecret(): string {
     return this.configService.get('JWT_SECRET', { infer: true });
   }
+
+  get featureDiscoveryMinQualityScore(): number {
+    return this.configService.get('FEATURE_DISCOVERY_MIN_QUALITY_SCORE', { infer: true });
+  }
 }

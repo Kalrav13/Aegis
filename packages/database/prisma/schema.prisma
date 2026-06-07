@@ -33,6 +33,69 @@ model AnalysisRun {
   repositoryUnderstanding Json?   @map("repository_understanding")
   aiReadyContext          Json?   @map("ai_ready_context")
   qualityScorecard        Json?   @map("quality_scorecard")
+  discoveryContext        Json?   @map("discovery_context")
+  featureQualityScorecard Json?   @map("feature_quality_scorecard")
+  scenarioDiscoveryContext Json?   @map("scenario_discovery_context")
+  scenarioQualityScorecard Json?   @map("scenario_quality_scorecard")
+  features                Feature[]
 
   @@map("analysis_runs")
+}
+
+model Feature {
+  id              String      @id @default(uuid())
+  analysisRunId   String      @map("analysis_run_id")
+  analysisRun     AnalysisRun @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  featureName     String      @map("feature_name")
+  featureType     String      @map("feature_type")
+  description     String
+  confidenceScore Float       @map("confidence_score")
+  evidence        Json
+  sourceWorkflows Json        @map("source_workflows")
+  riskLevel       String      @map("risk_level")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  qualityScore               Float?   @map("quality_score")
+  completenessScore          Float?   @map("completeness_score")
+  evidenceCoverageScore      Float?   @map("evidence_coverage_score")
+  workflowCoverageScore      Float?   @map("workflow_coverage_score")
+  confidenceReliabilityScore Float?   @map("confidence_reliability_score")
+  riskClassificationScore    Float?   @map("risk_classification_score")
+  qualityWarnings            Json?    @map("quality_warnings")
+
+  scenarios                  Scenario[]
+
+  @@map("features")
+}
+
+model Scenario {
+  id                         String      @id @default(uuid())
+  scenarioName               String      @map("scenario_name")
+  scenarioType               String      @map("scenario_type") // POSITIVE | NEGATIVE | EDGE_CASE | SECURITY | PERFORMANCE | INTEGRATION
+  description                String
+  confidenceScore            Float       @map("confidence_score")
+  evidence                   Json        // String array of files/endpoints supporting this scenario
+  sourceWorkflows            Json        // String array of workflows associated with this scenario
+  riskLevel                  String      @map("risk_level")
+  priority                   String      @map("priority")
+  coverageTargets            Json        @map("coverage_targets")
+  scenarioOrigin             Json?       @map("scenario_origin")
+  createdAt                  DateTime    @default(now()) @map("created_at")
+  
+  // Implicit many-to-many parents relationship
+  features                   Feature[]
+
+  // For Part 4.4 Scenario Quality Evaluator
+  qualityScore               Float?      @map("quality_score")
+  completenessScore          Float?      @map("completeness_score")
+  evidenceCoverageScore      Float?      @map("evidence_coverage_score")
+  workflowCoverageScore      Float?      @map("workflow_coverage_score")
+  priorityValidityScore      Float?      @map("priority_validity_score")
+  riskClassificationScore    Float?      @map("risk_classification_score")
+  traceabilityQualityScore   Float?      @map("traceability_quality_score")
+  coverageTargetScore        Float?      @map("coverage_target_score")
+  confidenceReliabilityScore Float?      @map("confidence_reliability_score")
+  qualityWarnings            Json?       @map("quality_warnings")
+
+  @@map("scenarios")
 }

@@ -15,7 +15,13 @@ import { UiScannerService } from './common/registry/ui-scanner.service';
 import { ApiScannerService } from './common/registry/api-scanner.service';
 import { RegistryService } from './common/registry/registry.service';
 import { ContextBuilderService } from './common/context/context-builder.service';
+import { DiscoveryContextBuilderService } from './common/context/discovery-context-builder.service';
+import { FeatureDiscoveryAgentService } from './common/context/feature-discovery-agent.service';
 import { QualityEvaluatorService } from './common/context/quality-evaluator.service';
+import { FeatureQualityEvaluatorService } from './common/context/feature-quality-evaluator.service';
+import { ScenarioDiscoveryContextBuilderService } from './common/context/scenario-discovery-context-builder.service';
+import { ScenarioDiscoveryAgentService } from './common/context/scenario-discovery-agent.service';
+import { ScenarioQualityEvaluatorService } from './common/context/scenario-quality-evaluator.service';
 import { AiService } from './common/ai/ai.service';
 import { UnderstandingAgentService } from './common/understanding/understanding-agent.service';
 
@@ -43,7 +49,13 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     ApiScannerService,
     RegistryService,
     ContextBuilderService,
+    DiscoveryContextBuilderService,
+    FeatureDiscoveryAgentService,
     QualityEvaluatorService,
+    FeatureQualityEvaluatorService,
+    ScenarioDiscoveryContextBuilderService,
+    ScenarioDiscoveryAgentService,
+    ScenarioQualityEvaluatorService,
     AiService,
     UnderstandingAgentService
   ],
@@ -55,7 +67,13 @@ import { UnderstandingAgentService } from './common/understanding/understanding-
     ManifestService,
     RegistryService,
     ContextBuilderService,
+    DiscoveryContextBuilderService,
+    FeatureDiscoveryAgentService,
     QualityEvaluatorService,
+    FeatureQualityEvaluatorService,
+    ScenarioDiscoveryContextBuilderService,
+    ScenarioDiscoveryAgentService,
+    ScenarioQualityEvaluatorService,
     UnderstandingAgentService
   ]
 })
