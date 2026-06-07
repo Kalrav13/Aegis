@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WifiOff, RefreshCw, Loader2 } from 'lucide-react';
+import { getApiBaseUrl } from '../utils/api';
 
 interface BackendOfflineStateProps {
   /** URL to ping for connectivity checks */
@@ -11,7 +12,7 @@ interface BackendOfflineStateProps {
 }
 
 export default function BackendOfflineState({
-  healthEndpoint = '/health',
+  healthEndpoint,
   autoRetryIntervalMs = 10000,
   onReconnected
 }: BackendOfflineStateProps) {
@@ -22,13 +23,16 @@ export default function BackendOfflineState({
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const onReconnectedRef = useRef(onReconnected);
 
+  // Resolve healthEndpoint dynamically
+  const activeHealthEndpoint = healthEndpoint || (getApiBaseUrl() ? `${getApiBaseUrl()}/health` : '/health');
+
   useEffect(() => {
     onReconnectedRef.current = onReconnected;
   }, [onReconnected]);
 
   const checkConnectivity = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await fetch(healthEndpoint, {
+      const res = await fetch(activeHealthEndpoint, {
         method: 'GET',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000)
@@ -37,7 +41,7 @@ export default function BackendOfflineState({
     } catch {
       return false;
     }
-  }, [healthEndpoint]);
+  }, [activeHealthEndpoint]);
 
   const handleRetry = useCallback(async () => {
     setIsRetrying(true);

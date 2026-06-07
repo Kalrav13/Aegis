@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { getApiBaseUrl } from '../utils/api';
 
 interface HealthMetrics {
   /** Average API latency in ms (rolling window) */
@@ -33,7 +34,7 @@ export function useFrontendHealth() {
 
 export function FrontendHealthProvider({ 
   children,
-  healthEndpoint = '/health',
+  healthEndpoint,
   intervalMs = 30000 
 }: { 
   children: React.ReactNode;
@@ -52,10 +53,13 @@ export function FrontendHealthProvider({
   const latencyWindowRef = useRef<number[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Resolve healthEndpoint dynamically
+  const activeHealthEndpoint = healthEndpoint || (getApiBaseUrl() ? `${getApiBaseUrl()}/health` : '/health');
+
   const performCheck = useCallback(async () => {
     const start = performance.now();
     try {
-      const res = await fetch(healthEndpoint, {
+      const res = await fetch(activeHealthEndpoint, {
         method: 'GET',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000)
@@ -90,7 +94,7 @@ export function FrontendHealthProvider({
         lastCheckedAt: new Date().toISOString()
       }));
     }
-  }, [healthEndpoint]);
+  }, [activeHealthEndpoint]);
 
   useEffect(() => {
     // Initial check

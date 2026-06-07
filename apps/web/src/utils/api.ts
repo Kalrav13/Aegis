@@ -1,8 +1,21 @@
 import { Project, AnalysisRun } from '../types';
 
+export function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return 'http://localhost:3001/api/v1';
+    }
+  }
+  return '';
+}
+
 export async function fetchProjects(): Promise<Project[]> {
   try {
-    const res = await fetch('/projects');
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/projects`);
     if (!res.ok) throw new Error('Failed to fetch projects');
     return await res.json();
   } catch (err) {
@@ -20,7 +33,8 @@ export async function fetchProjects(): Promise<Project[]> {
 }
 
 export async function createProject(data: { name: string; repoUrl: string; branch: string; token?: string }): Promise<Project> {
-  const res = await fetch('/projects', {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/projects`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -32,7 +46,8 @@ export async function createProject(data: { name: string; repoUrl: string; branc
 }
 
 export async function triggerAnalysis(projectId: string): Promise<AnalysisRun> {
-  const res = await fetch(`/projects/${projectId}/analyses`, {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/projects/${projectId}/analyses`, {
     method: 'POST'
   });
   if (!res.ok) {
@@ -43,7 +58,8 @@ export async function triggerAnalysis(projectId: string): Promise<AnalysisRun> {
 
 export async function fetchProjectHistory(projectId: string): Promise<AnalysisRun[]> {
   try {
-    const res = await fetch(`/projects/${projectId}/analyses`);
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/projects/${projectId}/analyses`);
     if (!res.ok) throw new Error('Failed to fetch history');
     return await res.json();
   } catch (err) {
@@ -53,7 +69,8 @@ export async function fetchProjectHistory(projectId: string): Promise<AnalysisRu
 }
 
 export async function fetchAnalysisStatus(analysisId: string): Promise<AnalysisRun> {
-  const res = await fetch(`/analyses/${analysisId}`);
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/analyses/${analysisId}`);
   if (!res.ok) {
     throw new Error('Failed to fetch analysis status');
   }
