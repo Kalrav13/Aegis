@@ -13,8 +13,15 @@ export function getApiBaseUrl(): string {
   }
 
   if (url) {
-    url = url.trim().replace(/[\r\n]/g, '');
+    // Remove all whitespace characters, newlines, and carriage returns
+    url = url.replace(/\s+/g, '');
+    // Strip trailing slashes
     url = url.replace(/\/$/, '');
+    // Normalize duplicate suffix segments or accidental trailing health check paths
+    url = url.replace(/\/health$/, '');
+    url = url.replace(/\/api\/v1\/api\/v1$/, '/api/v1');
+    url = url.replace(/\/api\/api$/, '/api');
+
     if (!url.endsWith('/api/v1') && !url.endsWith('/api')) {
       url = `${url}/api/v1`;
     }
