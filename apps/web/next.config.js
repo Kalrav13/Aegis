@@ -21,6 +21,10 @@ const nextConfig = {
         destination: `${cleanApiUrl}/analyses/:path*`,
       },
       {
+        source: '/auth/:path*',
+        destination: `${cleanApiUrl}/auth/:path*`,
+      },
+      {
         source: '/api/:path*',
         destination: `${baseHost}/api/:path*`,
       },
