@@ -7,8 +7,7 @@ import {
   Settings, 
   GitBranch,
   Zap,
-  Info,
-  LogOut
+  Info
 } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
 
@@ -38,11 +37,6 @@ export default function Layout({
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem('testlens_auth_token');
-    window.location.href = '/login';
-  };
-
   return (
     <div className="flex min-h-screen bg-[#080b11] text-slate-100 antialiased">
       {/* Sidebar navigation */}
@@ -71,23 +65,23 @@ export default function Layout({
           {/* Navigation link list */}
           <nav className="p-4 space-y-1.5">
             {navItems.map((item) => {
-               const IconComp = item.icon;
-               const isActive = activeTab === item.id;
-               return (
-                 <button
-                   key={item.id}
-                   id={`nav-${item.id}`}
-                   onClick={() => onTabChange(item.id)}
-                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                     isActive 
-                       ? 'bg-indigo-600/20 text-indigo-300 border-l-2 border-indigo-500 shadow-glass' 
-                       : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-                   }`}
-                 >
-                   <IconComp className={`h-4.5 w-4.5 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
-                   <span>{item.label}</span>
-                 </button>
-               );
+              const IconComp = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  id={`nav-${item.id}`}
+                  onClick={() => onTabChange(item.id)}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-indigo-600/20 text-indigo-300 border-l-2 border-indigo-500 shadow-glass' 
+                      : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+                  }`}
+                >
+                  <IconComp className={`h-4.5 w-4.5 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
             })}
           </nav>
         </div>
@@ -122,14 +116,6 @@ export default function Layout({
                 <Info className="h-4.5 w-4.5" />
               </button>
             )}
-            <button
-              onClick={handleLogout}
-              className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-500 hover:text-rose-400 transition-colors"
-              title="Sign Out"
-              id="logout-btn"
-            >
-              <LogOut className="h-4.5 w-4.5" />
-            </button>
           </div>
         </header>
 
