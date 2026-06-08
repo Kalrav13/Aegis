@@ -10,6 +10,14 @@ export class AiService {
   constructor(private readonly config: AppConfigService) {
     const rawApiKey = this.config.geminiApiKey || '';
     this.apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
+    
+    // Diagnostic log to identify key format issues safely
+    const keyPreview = this.apiKey ? `${this.apiKey.substring(0, 6)}... (length: ${this.apiKey.length})` : 'none';
+    console.log(`🔑 Initializing Gemini client with API Key prefix: ${keyPreview}`);
+    if (this.apiKey && !this.apiKey.startsWith('AIzaSy') && this.apiKey !== 'mock-gemini-api-key') {
+      console.warn('⚠️ WARNING: The configured GEMINI_API_KEY does not start with the standard "AIzaSy" prefix. It is likely invalid!');
+    }
+    
     this.genAI = new GoogleGenerativeAI(this.apiKey);
   }
 
