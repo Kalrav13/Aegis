@@ -5,18 +5,19 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 @Injectable()
 export class AiService {
   private readonly genAI: GoogleGenerativeAI;
+  private readonly apiKey: string;
 
   constructor(private readonly config: AppConfigService) {
-    const apiKey = this.config.geminiApiKey;
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    const rawApiKey = this.config.geminiApiKey || '';
+    this.apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
+    this.genAI = new GoogleGenerativeAI(this.apiKey);
   }
 
   /**
    * Calls the Gemini API with JSON mode enabled and returns the raw string response.
    */
   public async generateJson(prompt: string, modelName: string = 'gemini-1.5-flash'): Promise<string> {
-    const apiKey = this.config.geminiApiKey;
-    if (apiKey === 'mock-gemini-api-key' || !apiKey || apiKey.includes('mock') || apiKey.includes('invalid')) {
+    if (this.apiKey === 'mock-gemini-api-key' || !this.apiKey || this.apiKey.includes('mock') || this.apiKey.includes('invalid')) {
       return this.generateMockJson(prompt);
     }
 
