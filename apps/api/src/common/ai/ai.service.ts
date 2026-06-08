@@ -29,24 +29,45 @@ export class AiService {
       return this.generateMockJson(prompt);
     }
 
-    try {
-      const model = this.genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: {
-          responseMimeType: 'application/json'
-        }
-      });
+    const maxRetries = 4;
+    let attempt = 0;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      if (!text) {
-        throw new Error('Gemini API returned an empty response text.');
+    while (attempt < maxRetries) {
+      try {
+        const model = this.genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            responseMimeType: 'application/json'
+          }
+        });
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        if (!text) {
+          throw new Error('Gemini API returned an empty response text.');
+        }
+        return text;
+      } catch (error: any) {
+        attempt++;
+        const errText = error.message || '';
+        const isTransient = errText.includes('503') || 
+                            errText.includes('429') || 
+                            errText.includes('ResourceExhausted') || 
+                            errText.includes('overloaded') || 
+                            errText.includes('high demand') ||
+                            errText.includes('Service Unavailable');
+
+        if (isTransient && attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          console.warn(`⚠️ Gemini API failed (attempt ${attempt}/${maxRetries}): "${errText}". Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          console.error(`Gemini API failure after ${attempt} attempts:`, errText);
+          throw error;
+        }
       }
-      return text;
-    } catch (error: any) {
-      console.error('Gemini API integration layer failed:', error.message);
-      throw error;
     }
+    throw new Error('Gemini API failed to respond after maximum retries.');
   }
 
   private generateMockJson(prompt: string): string {
