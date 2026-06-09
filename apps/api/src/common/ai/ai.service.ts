@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { AppConfigService } from '../config/config.service';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Injectable } from "@nestjs/common";
+import { AppConfigService } from "../config/config.service";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 @Injectable()
 export class AiService {
@@ -8,114 +8,175 @@ export class AiService {
   private readonly apiKey: string;
 
   constructor(private readonly config: AppConfigService) {
-    const rawApiKey = this.config.geminiApiKey || '';
-    this.apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
-    
+    const rawApiKey = this.config.geminiApiKey || "";
+    this.apiKey = rawApiKey.trim().replace(/^["']|["']$/g, "");
+
     // Diagnostic log to identify key format issues safely
-    const keyPreview = this.apiKey ? `${this.apiKey.substring(0, 6)}... (length: ${this.apiKey.length})` : 'none';
-    console.log(`🔑 Initializing Gemini client with API Key prefix: ${keyPreview}`);
-    if (this.apiKey && !this.apiKey.startsWith('AIzaSy') && this.apiKey !== 'mock-gemini-api-key') {
-      console.warn('⚠️ WARNING: The configured GEMINI_API_KEY does not start with the standard "AIzaSy" prefix. It is likely invalid!');
+    const keyPreview = this.apiKey
+      ? `${this.apiKey.substring(0, 6)}... (length: ${this.apiKey.length})`
+      : "none";
+    console.log(
+      `🔑 Initializing Gemini client with API Key prefix: ${keyPreview}`,
+    );
+    if (
+      this.apiKey &&
+      !this.apiKey.startsWith("AIzaSy") &&
+      this.apiKey !== "mock-gemini-api-key"
+    ) {
+      console.warn(
+        '⚠️ WARNING: The configured GEMINI_API_KEY does not start with the standard "AIzaSy" prefix. It is likely invalid!',
+      );
     }
-    
+
     this.genAI = new GoogleGenerativeAI(this.apiKey);
   }
 
   /**
    * Calls the Gemini API with JSON mode enabled and returns the raw string response.
    */
-  public async generateJson(prompt: string, modelName: string = 'gemini-2.5-flash-lite'): Promise<string> {
-    if (this.apiKey === 'mock-gemini-api-key' || !this.apiKey || this.apiKey.includes('mock') || this.apiKey.includes('invalid')) {
+  public async generateJson(
+    prompt: string,
+    modelName?: string,
+  ): Promise<string> {
+    if (
+      this.apiKey === "mock-gemini-api-key" ||
+      !this.apiKey ||
+      this.apiKey.includes("mock") ||
+      this.apiKey.includes("invalid")
+    ) {
       return this.generateMockJson(prompt);
     }
 
-    const maxRetries = 4;
+    const finalModelName =
+      modelName || this.config.geminiModel || "gemini-2.5-flash-lite";
+    const maxRetries = 6;
     let attempt = 0;
 
     while (attempt < maxRetries) {
       try {
         const model = this.genAI.getGenerativeModel({
-          model: modelName,
+          model: finalModelName,
           generationConfig: {
-            responseMimeType: 'application/json'
-          }
+            responseMimeType: "application/json",
+          },
         });
 
         const result = await model.generateContent(prompt);
         const text = result.response.text();
         if (!text) {
-          throw new Error('Gemini API returned an empty response text.');
+          throw new Error("Gemini API returned an empty response text.");
         }
         return text;
       } catch (error: any) {
         attempt++;
-        const errText = error.message || '';
-        const isTransient = errText.includes('503') || 
-                            errText.includes('429') || 
-                            errText.includes('ResourceExhausted') || 
-                            errText.includes('overloaded') || 
-                            errText.includes('high demand') ||
-                            errText.includes('Service Unavailable');
+        const errText = error.message || "";
+        const isTransient =
+          errText.includes("503") ||
+          errText.includes("429") ||
+          errText.includes("ResourceExhausted") ||
+          errText.includes("overloaded") ||
+          errText.includes("high demand") ||
+          errText.includes("Service Unavailable");
 
         if (isTransient && attempt < maxRetries) {
-          const delay = Math.pow(2, attempt) * 1000;
-          console.warn(`⚠️ Gemini API failed (attempt ${attempt}/${maxRetries}): "${errText}". Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          let delay = Math.pow(2, attempt) * 1000;
+
+          // Try to extract exact retry duration from Gemini error message if available
+          const retryMatch = errText.match(/Please retry in (\d+(?:\.\d+)?)s/i);
+          if (retryMatch) {
+            const seconds = parseFloat(retryMatch[1]);
+            if (!isNaN(seconds)) {
+              delay = Math.ceil(seconds * 1000) + 1000; // Add 1 second buffer
+              console.log(
+                `⏱️ Parsed rate limit retry delay from Gemini: ${seconds}s. Waiting ${delay}ms before retrying (attempt ${attempt}/${maxRetries}).`,
+              );
+            }
+          } else {
+            console.warn(
+              `⚠️ Gemini API failed (attempt ${attempt}/${maxRetries}): "${errText}". Retrying in ${delay}ms...`,
+            );
+          }
+          await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
-          console.error(`Gemini API failure after ${attempt} attempts:`, errText);
+          console.error(
+            `Gemini API failure after ${attempt} attempts:`,
+            errText,
+          );
           throw error;
         }
       }
     }
-    throw new Error('Gemini API failed to respond after maximum retries.');
+    throw new Error("Gemini API failed to respond after maximum retries.");
   }
 
   private generateMockJson(prompt: string): string {
     // 1. Automation Quality Critic
-    if (prompt.includes("maintainabilityScore") && prompt.includes("assertionQualityScore")) {
+    if (
+      prompt.includes("maintainabilityScore") &&
+      prompt.includes("assertionQualityScore")
+    ) {
       return JSON.stringify({
         maintainabilityScore: 95,
         assertionQualityScore: 95,
-        warnings: []
+        warnings: [],
       });
     }
 
     // 2. Feature Quality Critic
-    if (prompt.includes("criticize each feature description") || prompt.includes("auditing a list of discovered business features")) {
-      const featureNames = Array.from(prompt.matchAll(/"name":\s*"([^"]+)"/g)).map(m => m[1]);
-      const evaluations = featureNames.map(name => ({
+    if (
+      prompt.includes("criticize each feature description") ||
+      prompt.includes("auditing a list of discovered business features")
+    ) {
+      const featureNames = Array.from(
+        prompt.matchAll(/"name":\s*"([^"]+)"/g),
+      ).map((m) => m[1]);
+      const evaluations = featureNames.map((name) => ({
         featureName: name,
         completenessScore: 95,
-        warnings: []
+        warnings: [],
       }));
       return JSON.stringify({ evaluations });
     }
 
     // 3. Scenario Quality Critic
-    if (prompt.includes("criticize each scenario") || prompt.includes("auditing a list of discovered business scenarios")) {
-      const scenarioNames = Array.from(prompt.matchAll(/"(?:scenarioName|name)":\s*"([^"]+)"/g)).map(m => m[1]);
-      const evaluations = scenarioNames.map(name => ({
+    if (
+      prompt.includes("criticize each scenario") ||
+      prompt.includes("auditing a list of discovered business scenarios")
+    ) {
+      const scenarioNames = Array.from(
+        prompt.matchAll(/"(?:scenarioName|name)":\s*"([^"]+)"/g),
+      ).map((m) => m[1]);
+      const evaluations = scenarioNames.map((name) => ({
         scenarioName: name,
         completenessScore: 95,
-        warnings: []
+        warnings: [],
       }));
       return JSON.stringify({ evaluations });
     }
 
     // 4. TestCase Quality Critic
-    if (prompt.includes("criticize each test case") || prompt.includes("auditing a list of discovered manual test cases")) {
-      const tcNames = Array.from(prompt.matchAll(/"(?:testCaseName|name)":\s*"([^"]+)"/g)).map(m => m[1]);
-      const evaluations = tcNames.map(name => ({
+    if (
+      prompt.includes("criticize each test case") ||
+      prompt.includes("auditing a list of discovered manual test cases")
+    ) {
+      const tcNames = Array.from(
+        prompt.matchAll(/"(?:testCaseName|name)":\s*"([^"]+)"/g),
+      ).map((m) => m[1]);
+      const evaluations = tcNames.map((name) => ({
         testCaseName: name,
         completenessScore: 95,
-        warnings: []
+        warnings: [],
       }));
       return JSON.stringify({ evaluations });
     }
 
     // 5. Repository Understanding
-    if (prompt.includes("applicationPurpose") && prompt.includes("targetUsers") && prompt.includes("businessDomains")) {
-      let firstFile = 'package.json';
+    if (
+      prompt.includes("applicationPurpose") &&
+      prompt.includes("targetUsers") &&
+      prompt.includes("businessDomains")
+    ) {
+      let firstFile = "package.json";
       try {
         const contextMatch = prompt.match(/<CONTEXT>([\s\S]*?)<\/CONTEXT>/);
         if (contextMatch) {
@@ -123,38 +184,44 @@ export class AiService {
           const files = [
             ...(context.evidence_index?.packages || []),
             ...(context.evidence_index?.configs || []),
-            ...((context.routes_and_apis || []).flatMap((r: any) => r.files || [])),
-            ...((context.forms || []).map((f: any) => f.path))
+            ...(context.routes_and_apis || []).flatMap(
+              (r: any) => r.files || [],
+            ),
+            ...(context.forms || []).map((f: any) => f.path),
           ].filter(Boolean);
           if (files.length > 0) {
             firstFile = files[0];
           }
         }
       } catch (err) {
-        console.error("Mock Repository Understanding: Failed to parse context", err);
+        console.error(
+          "Mock Repository Understanding: Failed to parse context",
+          err,
+        );
       }
 
       return JSON.stringify({
         applicationPurpose: {
-          summary: "This is a TestLens analyzed codebase showing user authentication, scenario execution reporting, and coverages.",
+          summary:
+            "This is a TestLens analyzed codebase showing user authentication, scenario execution reporting, and coverages.",
           confidenceScore: 0.95,
-          evidence: [firstFile]
+          evidence: [firstFile],
         },
         targetUsers: [
           {
             role: "QA Engineer",
             description: "Reviews coverages and executions",
             confidenceScore: 0.9,
-            evidence: [firstFile]
-          }
+            evidence: [firstFile],
+          },
         ],
         businessDomains: [
           {
             name: "QA Automation",
             description: "Quality assurance and test tracking",
             confidenceScore: 0.9,
-            evidence: [firstFile]
-          }
+            evidence: [firstFile],
+          },
         ],
         coreWorkflows: [
           {
@@ -164,8 +231,8 @@ export class AiService {
             associatedRoutes: [],
             associatedApis: [],
             confidenceScore: 0.9,
-            evidence: [firstFile]
-          }
+            evidence: [firstFile],
+          },
         ],
         highRiskWorkflows: [
           {
@@ -173,14 +240,18 @@ export class AiService {
             riskFactor: "Auth bypass",
             mitigationFocus: "Strict credential check",
             confidenceScore: 0.9,
-            evidence: [firstFile]
-          }
-        ]
+            evidence: [firstFile],
+          },
+        ],
       });
     }
 
     // 6. Feature Discovery
-    if (prompt.includes("features") && prompt.includes("featureType") && prompt.includes("CORE | SUPPORTING")) {
+    if (
+      prompt.includes("features") &&
+      prompt.includes("featureType") &&
+      prompt.includes("CORE | SUPPORTING")
+    ) {
       let routes: string[] = [];
       let apis: string[] = [];
       let components: string[] = [];
@@ -196,41 +267,50 @@ export class AiService {
         const compsMatch = prompt.match(/\* Components:\s*(\[.*?\])/);
         if (compsMatch) components = JSON.parse(compsMatch[1]);
 
-        const wfMatch = prompt.match(/- Aggregated Core Workflows:\s*(\[[\s\S]*?\])\s*- Risk Profile:/i);
+        const wfMatch = prompt.match(
+          /- Aggregated Core Workflows:\s*(\[[\s\S]*?\])\s*- Risk Profile:/i,
+        );
         if (wfMatch) workflows = JSON.parse(wfMatch[1]);
       } catch (e) {
         console.error("Mock Feature Discovery: Failed to parse candidates", e);
       }
 
-      const evidenceFile = routes[0] || apis[0] || components[0] || 'package.json';
-      const workflowName = workflows[0]?.name || 'User Login';
+      const evidenceFile =
+        routes[0] || apis[0] || components[0] || "package.json";
+      const workflowName = workflows[0]?.name || "User Login";
 
       const features = [
         {
           featureName: "User Authentication",
           featureType: "CORE",
-          description: "Provides authentication layer to verify user credentials and establish session tokens securely.",
+          description:
+            "Provides authentication layer to verify user credentials and establish session tokens securely.",
           confidenceScore: 0.95,
           evidence: [evidenceFile],
           sourceWorkflows: [workflowName],
-          riskLevel: "CRITICAL"
+          riskLevel: "CRITICAL",
         },
         {
           featureName: "Settings Management",
           featureType: "SUPPORTING",
-          description: "Enables configurations, preference storage, system tuning, and key adjustments management.",
+          description:
+            "Enables configurations, preference storage, system tuning, and key adjustments management.",
           confidenceScore: 0.85,
           evidence: [evidenceFile],
           sourceWorkflows: [workflowName],
-          riskLevel: "MEDIUM"
-        }
+          riskLevel: "MEDIUM",
+        },
       ];
 
       return JSON.stringify({ features });
     }
 
     // 7. Scenario Discovery
-    if (prompt.includes("scenarios") && prompt.includes("scenarioName") && prompt.includes("parentFeatures")) {
+    if (
+      prompt.includes("scenarios") &&
+      prompt.includes("scenarioName") &&
+      prompt.includes("parentFeatures")
+    ) {
       let features: any[] = [];
       let workflows: any[] = [];
       let routes: string[] = [];
@@ -238,10 +318,14 @@ export class AiService {
       let forms: string[] = [];
 
       try {
-        const featMatch = prompt.match(/=== FEATURE LIST ===\s*(\[[\s\S]*?\])\s*=== WORKFLOW LIST ===/);
+        const featMatch = prompt.match(
+          /=== FEATURE LIST ===\s*(\[[\s\S]*?\])\s*=== WORKFLOW LIST ===/,
+        );
         if (featMatch) features = JSON.parse(featMatch[1]);
 
-        const wfMatch = prompt.match(/=== WORKFLOW LIST ===\s*(\[[\s\S]*?\])\s*=== CANDIDATE ASSETS ===/);
+        const wfMatch = prompt.match(
+          /=== WORKFLOW LIST ===\s*(\[[\s\S]*?\])\s*=== CANDIDATE ASSETS ===/,
+        );
         if (wfMatch) workflows = JSON.parse(wfMatch[1]);
 
         const routesMatch = prompt.match(/- Routes:\s*(\[.*?\])/);
@@ -253,20 +337,36 @@ export class AiService {
         const formsMatch = prompt.match(/- Forms:\s*(\[.*?\])/);
         if (formsMatch) forms = JSON.parse(formsMatch[1]);
       } catch (e) {
-        console.error("Mock Scenario Discovery: Failed to parse feature list", e);
+        console.error(
+          "Mock Scenario Discovery: Failed to parse feature list",
+          e,
+        );
       }
 
       const scenarios: any[] = [];
-      
+
       // Default fallback lists if parsed empty
       if (features.length === 0) {
-        features = [{ name: "User Authentication", riskLevel: "CRITICAL", evidence: ["package.json"], sourceWorkflows: ["User Login"] }];
+        features = [
+          {
+            name: "User Authentication",
+            riskLevel: "CRITICAL",
+            evidence: ["package.json"],
+            sourceWorkflows: ["User Login"],
+          },
+        ];
       }
 
       for (const feat of features) {
-        const evidenceFile = feat.evidence?.[0] || routes[0] || apis[0] || forms[0] || 'package.json';
-        const workflowName = feat.sourceWorkflows?.[0] || 'User Login';
-        const isCriticalOrHigh = feat.riskLevel === 'CRITICAL' || feat.riskLevel === 'HIGH';
+        const evidenceFile =
+          feat.evidence?.[0] ||
+          routes[0] ||
+          apis[0] ||
+          forms[0] ||
+          "package.json";
+        const workflowName = feat.sourceWorkflows?.[0] || "User Login";
+        const isCriticalOrHigh =
+          feat.riskLevel === "CRITICAL" || feat.riskLevel === "HIGH";
 
         // 1. Positive
         scenarios.push({
@@ -278,7 +378,7 @@ export class AiService {
           riskLevel: feat.riskLevel,
           parentFeatures: [feat.name],
           sourceWorkflows: [workflowName],
-          evidence: [evidenceFile]
+          evidence: [evidenceFile],
         });
 
         // 2. Negative
@@ -291,7 +391,7 @@ export class AiService {
           riskLevel: feat.riskLevel,
           parentFeatures: [feat.name],
           sourceWorkflows: [workflowName],
-          evidence: [evidenceFile]
+          evidence: [evidenceFile],
         });
 
         // 3. Security or Edge case
@@ -304,7 +404,7 @@ export class AiService {
           riskLevel: feat.riskLevel,
           parentFeatures: [feat.name],
           sourceWorkflows: [workflowName],
-          evidence: [evidenceFile]
+          evidence: [evidenceFile],
         });
       }
 
@@ -312,14 +412,20 @@ export class AiService {
     }
 
     // 8. TestCase Discovery
-    if (prompt.includes("testCases") && prompt.includes("testCaseName") && prompt.includes("parentScenarioId")) {
+    if (
+      prompt.includes("testCases") &&
+      prompt.includes("testCaseName") &&
+      prompt.includes("parentScenarioId")
+    ) {
       let scenarios: any[] = [];
       let routes: string[] = [];
       let apis: string[] = [];
       let forms: string[] = [];
 
       try {
-        const scenMatch = prompt.match(/=== SCENARIO LIST ===\s*(\[[\s\S]*?\])\s*=== CANDIDATE ASSET WHITELIST ===/);
+        const scenMatch = prompt.match(
+          /=== SCENARIO LIST ===\s*(\[[\s\S]*?\])\s*=== CANDIDATE ASSET WHITELIST ===/,
+        );
         if (scenMatch) scenarios = JSON.parse(scenMatch[1]);
 
         const routesMatch = prompt.match(/- Routes:\s*(\[.*?\])/);
@@ -331,18 +437,35 @@ export class AiService {
         const formsMatch = prompt.match(/- Forms:\s*(\[.*?\])/);
         if (formsMatch) forms = JSON.parse(formsMatch[1]);
       } catch (e) {
-        console.error("Mock TestCase Discovery: Failed to parse scenario list", e);
+        console.error(
+          "Mock TestCase Discovery: Failed to parse scenario list",
+          e,
+        );
       }
 
       if (scenarios.length === 0) {
-        scenarios = [{ id: "scen-uuid", name: "Successful authentication", type: "POSITIVE", priority: "HIGH", evidence: ["package.json"] }];
+        scenarios = [
+          {
+            id: "scen-uuid",
+            name: "Successful authentication",
+            type: "POSITIVE",
+            priority: "HIGH",
+            evidence: ["package.json"],
+          },
+        ];
       }
 
       const testCases: any[] = [];
 
       for (const scen of scenarios) {
-        const evidenceFile = scen.evidence?.[0] || routes[0] || apis[0] || forms[0] || 'package.json';
-        const isCriticalOrHigh = scen.priority === 'CRITICAL' || scen.priority === 'HIGH';
+        const evidenceFile =
+          scen.evidence?.[0] ||
+          routes[0] ||
+          apis[0] ||
+          forms[0] ||
+          "package.json";
+        const isCriticalOrHigh =
+          scen.priority === "CRITICAL" || scen.priority === "HIGH";
 
         // 1. Functional
         testCases.push({
@@ -352,12 +475,20 @@ export class AiService {
           description: `Execute happy path flows to verify core functionality of ${scen.name}.`,
           preconditions: ["System is operational", "User session is valid"],
           steps: [
-            { stepNumber: 1, action: "Trigger action on page", expectedResult: "Page displays result" },
-            { stepNumber: 2, action: "Confirm data matches", expectedResult: "Values are verified successfully" }
+            {
+              stepNumber: 1,
+              action: "Trigger action on page",
+              expectedResult: "Page displays result",
+            },
+            {
+              stepNumber: 2,
+              action: "Confirm data matches",
+              expectedResult: "Values are verified successfully",
+            },
           ],
           expectedResult: `Basic flow of ${scen.name} executes correctly.`,
           evidence: [evidenceFile],
-          parentScenarioId: scen.id
+          parentScenarioId: scen.id,
         });
 
         // 2. Negative
@@ -368,11 +499,15 @@ export class AiService {
           description: `Verify validation schema blocks bad parameters and handles error outputs for ${scen.name}.`,
           preconditions: ["System is operational"],
           steps: [
-            { stepNumber: 1, action: "Trigger action with invalid input", expectedResult: "Page displays input validation error" }
+            {
+              stepNumber: 1,
+              action: "Trigger action with invalid input",
+              expectedResult: "Page displays input validation error",
+            },
           ],
           expectedResult: "Action is blocked and user is notified of error.",
           evidence: [evidenceFile],
-          parentScenarioId: scen.id
+          parentScenarioId: scen.id,
         });
 
         // 3. Security/Edge Case (if critical or high)
@@ -384,11 +519,15 @@ export class AiService {
             description: `Verify access is denied for unauthorized requests to ${scen.name}.`,
             preconditions: ["System is operational"],
             steps: [
-              { stepNumber: 1, action: "Submit request without token header", expectedResult: "Returns 401 Unauthorized" }
+              {
+                stepNumber: 1,
+                action: "Submit request without token header",
+                expectedResult: "Returns 401 Unauthorized",
+              },
             ],
             expectedResult: "Unauthorized requests are blocked.",
             evidence: [evidenceFile],
-            parentScenarioId: scen.id
+            parentScenarioId: scen.id,
           });
         }
       }
@@ -397,37 +536,54 @@ export class AiService {
     }
 
     // 9. Automation Generation
-    if (prompt.includes("specCode") && prompt.includes("pageObjectCode") && prompt.includes("MANUAL TEST CASES TO AUTOMATE")) {
+    if (
+      prompt.includes("specCode") &&
+      prompt.includes("pageObjectCode") &&
+      prompt.includes("MANUAL TEST CASES TO AUTOMATE")
+    ) {
       let selectors: any[] = [];
       let routes: string[] = [];
       let apis: string[] = [];
       let testCases: any[] = [];
 
       try {
-        const selMatch = prompt.match(/=== WHITELISTED ELEMENT SELECTORS ===\s*(\[[\s\S]*?\])\s*=== WHITELISTED ROUTES ===/);
+        const selMatch = prompt.match(
+          /=== WHITELISTED ELEMENT SELECTORS ===\s*(\[[\s\S]*?\])\s*=== WHITELISTED ROUTES ===/,
+        );
         if (selMatch) selectors = JSON.parse(selMatch[1]);
 
-        const routesMatch = prompt.match(/=== WHITELISTED ROUTES ===\s*(\[[\s\S]*?\])\s*=== WHITELISTED APIS ===/);
+        const routesMatch = prompt.match(
+          /=== WHITELISTED ROUTES ===\s*(\[[\s\S]*?\])\s*=== WHITELISTED APIS ===/,
+        );
         if (routesMatch) routes = JSON.parse(routesMatch[1]);
 
-        const apisMatch = prompt.match(/=== WHITELISTED APIS ===\s*(\[[\s\S]*?\])\s*=== WHITELISTED FORMS ===/);
+        const apisMatch = prompt.match(
+          /=== WHITELISTED APIS ===\s*(\[[\s\S]*?\])\s*=== WHITELISTED FORMS ===/,
+        );
         if (apisMatch) apis = JSON.parse(apisMatch[1]);
 
-        const tcMatch = prompt.match(/=== MANUAL TEST CASES TO AUTOMATE ===\s*(\[[\s\S]*?\])\s*=== OUTPUT FORMAT ===/);
+        const tcMatch = prompt.match(
+          /=== MANUAL TEST CASES TO AUTOMATE ===\s*(\[[\s\S]*?\])\s*=== OUTPUT FORMAT ===/,
+        );
         if (tcMatch) testCases = JSON.parse(tcMatch[1]);
       } catch (e) {
-        console.error("Mock Automation Generation: Failed to parse whitelists", e);
+        console.error(
+          "Mock Automation Generation: Failed to parse whitelists",
+          e,
+        );
       }
 
       if (testCases.length === 0) {
-        testCases = [{ id: "tc-uuid", key: "TC-AUTH-001", name: "Verify login" }];
+        testCases = [
+          { id: "tc-uuid", key: "TC-AUTH-001", name: "Verify login" },
+        ];
       }
 
-      const firstSelector = selectors[0]?.selector || '#app';
-      const firstRoute = routes[0] || '/';
-      const firstApi = apis[0] || '/api/health';
+      const firstSelector = selectors[0]?.selector || "#app";
+      const firstRoute = routes[0] || "/";
+      const firstApi = apis[0] || "/api/health";
 
-      const scripts = testCases.map(tc => {
+      const scripts = testCases.map((tc) => {
         const specCode = `import { test, expect } from '@playwright/test';
 import { LoginPage } from './login.page';
 
@@ -454,7 +610,7 @@ export class LoginPage {
           pageObjectFilePath: "tests/pages/auth.page.ts",
           pageObjectCode,
           specFilePath: `tests/auth-${tc.key.toLowerCase()}.spec.ts`,
-          specCode
+          specCode,
         };
       });
 
