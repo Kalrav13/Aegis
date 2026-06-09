@@ -24,7 +24,7 @@ export class AiService {
   /**
    * Calls the Gemini API with JSON mode enabled and returns the raw string response.
    */
-  public async generateJson(prompt: string, modelName: string = 'gemini-2.5-flash'): Promise<string> {
+  public async generateJson(prompt: string, modelName: string = 'gemini-2.0-flash-lite'): Promise<string> {
     if (this.apiKey === 'mock-gemini-api-key' || !this.apiKey || this.apiKey.includes('mock') || this.apiKey.includes('invalid')) {
       return this.generateMockJson(prompt);
     }
