@@ -8,7 +8,8 @@ import {
   BookOpen,
   PieChart,
   Eye,
-  Lightbulb
+  Lightbulb,
+  AlertTriangle
 } from 'lucide-react';
 import { AnalysisRun } from '../types';
 import { mapToCoverageViewModel } from '../utils/mappers';
@@ -117,6 +118,21 @@ export default function FeatureBrowser({ run }: FeatureBrowserProps) {
                         Confidence Score: {feature.confidenceScore}
                       </span>
                     </div>
+
+                    {/* Quality Recommendations */}
+                    {feature.qualityWarnings && feature.qualityWarnings.length > 0 && (
+                      <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-450 flex items-start space-x-2">
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                        <div>
+                          <span className="font-semibold">Quality Recommendations</span>
+                          <ul className="list-disc list-inside mt-1 text-amber-400">
+                            {feature.qualityWarnings.map((warn, idx) => (
+                              <li key={idx}>{warn}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Render Scenarios List */}
                     {(!feature.scenarios || feature.scenarios.length === 0) ? (

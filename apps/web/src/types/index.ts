@@ -79,6 +79,8 @@ export interface CoverageViewModel {
       automatedCount: number;
       coverageRatio: number;
       confidenceScore: number;
+      // New array of quality warning messages
+      qualityWarnings?: string[];
       scenarios?: Array<{
         id: string;
         scenarioName: string;

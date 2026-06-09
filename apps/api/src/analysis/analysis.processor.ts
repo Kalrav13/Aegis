@@ -187,7 +187,11 @@ export class AnalysisProcessor {
       // 15b. Execute Scenario Discovery Agent
       let discoveredScenarios: any[] = [];
       if (scenarioDiscoveryContext && scenarioDiscoveryContext.scenarioReadiness.ready) {
-        discoveredScenarios = await this.scenarioDiscoveryAgentService.discoverScenarios(scenarioDiscoveryContext);
+        const agentResult = await this.scenarioDiscoveryAgentService.discoverScenarios(scenarioDiscoveryContext);
+        discoveredScenarios = agentResult.scenarios.map(s => ({
+          ...s,
+          warnings: agentResult.warnings || []
+        }));
       }
 
       // 15c. Execute Scenario Quality Evaluator

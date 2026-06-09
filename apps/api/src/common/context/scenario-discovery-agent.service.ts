@@ -15,7 +15,7 @@ export class ScenarioDiscoveryAgentService {
    * Discovers business scenarios using the scenario discovery context, processes validations, 
    * applies deduplication/guardrails/traceability, and returns the final sanitized scenario list.
    */
-  public async discoverScenarios(context: ScenarioDiscoveryContext): Promise<Scenario[]> {
+  public async discoverScenarios(context: ScenarioDiscoveryContext): Promise<{ scenarios: Scenario[]; warnings: { featureName: string; warning: string }[] }> {
     // 1. Validate scenarioReadiness before execution
     if (!context.scenarioReadiness.ready) {
       throw new Error(
@@ -115,7 +115,10 @@ Return a JSON object conforming exactly to:
   /**
    * Sanitizes, normalizes, maps coverage, maps traceability, dedups, and applies guardrails.
    */
-  private validateAndSanitize(rawJson: string, context: ScenarioDiscoveryContext): Scenario[] {
+  private validateAndSanitize(
+    rawJson: string,
+    context: ScenarioDiscoveryContext
+  ): { scenarios: Scenario[]; warnings: { featureName: string; warning: string }[] } {
     const parsedObj = JSON.parse(rawJson);
     const rawScenarios = Array.isArray(parsedObj.scenarios) ? parsedObj.scenarios : [];
 
@@ -302,6 +305,7 @@ Return a JSON object conforming exactly to:
     }
 
     let finalScenarios = Array.from(dedupedScenariosMap.values());
+    const warnings: { featureName: string; warning: string }[] = [];
 
     // 6. Scenario Count Guardrails (Per Feature)
     for (const feature of context.featureSummary) {
@@ -310,9 +314,10 @@ Return a JSON object conforming exactly to:
 
       // Guardrail Check: Minimum 3 scenarios
       if (featureScenarios.length < 3) {
-        throw new Error(
-          `Feature "${feature.featureName}" does not meet minimum scenario count guardrail: expected at least 3, got ${featureScenarios.length}`
-        );
+        warnings.push({
+          featureName: feature.featureName,
+          warning: `Scenario Count Check: Expected at least 3 scenarios, but only ${featureScenarios.length} were discovered.`
+        });
       }
 
       const positiveScenarios = featureScenarios.filter(s => s.scenarioType === 'POSITIVE');
@@ -320,16 +325,18 @@ Return a JSON object conforming exactly to:
 
       // Guardrail Check: At least 1 POSITIVE
       if (positiveScenarios.length === 0) {
-        throw new Error(
-          `Feature "${feature.featureName}" does not meet priority coverage: missing POSITIVE scenario`
-        );
+        warnings.push({
+          featureName: feature.featureName,
+          warning: `Priority Coverage Check: Missing POSITIVE (happy path) scenario.`
+        });
       }
 
       // Guardrail Check: At least 1 NEGATIVE
       if (negativeScenarios.length === 0) {
-        throw new Error(
-          `Feature "${feature.featureName}" does not meet priority coverage: missing NEGATIVE scenario`
-        );
+        warnings.push({
+          featureName: feature.featureName,
+          warning: `Priority Coverage Check: Missing NEGATIVE (error handling/graceful degradation) scenario.`
+        });
       }
 
       // Risk Guardrail Check: HIGH/CRITICAL features must have at least 1 SECURITY or EDGE_CASE
@@ -338,9 +345,10 @@ Return a JSON object conforming exactly to:
       const securityOrEdge = featureScenarios.filter(s => s.scenarioType === 'SECURITY' || s.scenarioType === 'EDGE_CASE');
 
       if (isHighOrCritical && securityOrEdge.length === 0) {
-        throw new Error(
-          `Feature "${feature.featureName}" is ${feature.riskLevel} risk but does not meet priority coverage: missing SECURITY or EDGE_CASE scenario`
-        );
+        warnings.push({
+          featureName: feature.featureName,
+          warning: `Risk Guardrail Check: Feature risk level is ${feature.riskLevel}, but it is missing a SECURITY or EDGE_CASE scenario.`
+        });
       }
 
       // Guardrail Check: Maximum 15 scenarios
@@ -382,6 +390,9 @@ Return a JSON object conforming exactly to:
 
     // 7. Validate output against ScenarioDiscoveryOutputSchema
     const validatedOutput = ScenarioDiscoveryOutputSchema.parse({ scenarios: finalScenarios });
-    return validatedOutput.scenarios;
+    return {
+      scenarios: validatedOutput.scenarios,
+      warnings
+    };
   }
 }

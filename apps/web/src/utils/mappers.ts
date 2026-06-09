@@ -110,6 +110,7 @@ export function mapToCoverageViewModel(run: AnalysisRun): CoverageViewModel {
         automatedCount: f.automatedCount || 0,
         coverageRatio: f.coverageRatio || 0,
         confidenceScore: f.confidenceScore || 0,
+        qualityWarnings: f.qualityWarnings || [],
         scenarios: (f.scenarios || []).map((s: any) => ({
           id: s.id || '',
           scenarioName: s.scenarioName || '',
