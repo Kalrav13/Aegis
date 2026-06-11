@@ -6,7 +6,7 @@ TestLens is a monorepo platform that automates repository understanding, feature
 
 ## 📂 Repository Structure
 
-The project is structured as a TypeScript/Node monorepo using **NPM Workspaces** and managed with **Turborepo** for build optimization.
+The project is structured as a TypeScript/Node monorepo using **NPM Workspaces** and managed with **Turborepo** for build optimization.11
 
 ```
 TestLens/
@@ -142,3 +142,4 @@ cd apps/api
 npx jest
 ```
 *(Spec files are excluded from default builds via tsconfig mappings).*
+Minor update – timestamp: 2026-06-11T15:05Z
