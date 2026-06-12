@@ -1,15 +1,15 @@
-# TestLens — AI-Powered QA Analyst Platform
+# Aegis — AI-Powered QA Analyst Platform
 
-TestLens is a monorepo platform that automates repository understanding, feature and scenario discovery, test case generation, test coverage intelligence, and execution performance analytics using agentic AI reasoning.
+Aegis is a monorepo platform that automates repository understanding, feature and scenario discovery, test case generation, test coverage intelligence, and execution performance analytics using agentic AI reasoning.
 
 ---
 
 ## 📂 Repository Structure
 
-The project is structured as a TypeScript/Node monorepo using **NPM Workspaces** and managed with **Turborepo** for build optimization.11
+The project is structured as a TypeScript/Node monorepo using **NPM Workspaces** and managed with **Turborepo** for build optimization.
 
 ```
-TestLens/
+Aegis/
 ├── apps/
 │   ├── api/                   # NestJS API backend (ingestion, analytics, processor, Gemini LLM connection)
 │   └── web/                   # Next.js frontend (dashboards, feature coverage maps, execution reporting UI)
